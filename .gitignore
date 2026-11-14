@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.log
+corredor.db
+prueba.csv
+datos.csv
