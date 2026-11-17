@@ -64,9 +64,11 @@ Podés abrir el CSV en Excel o en Python (pandas) para empezar a buscar relacion
 
 La API gratuita de Open-Meteo es para **uso no comercial**. Si vas a vender un servicio basado en estos datos, vas a necesitar un plan comercial de ellos u otra fuente (por ejemplo, datos oficiales del Servicio Meteorológico Nacional). Revisá sus términos actuales antes de cobrar.
 
-## Estructura de los datos (SQLite)
+## Estructura de los datos (CSV)
 
-Hay dos archivos: `data/auto.db` (lo escribe el recolector automático) y `data/manual.db` (lo que cargás vos). Las dos tienen las mismas tablas, y `report` y `export` las leen juntas.
+Cada tabla es un archivo CSV en `data/` (por ejemplo `data/weather_obs.csv`). Se pueden abrir con Excel o con pandas. El recolector automático escribe `weather_obs`, `marine_obs` y `collector_errors`, y los comandos manuales escriben `status_obs`, `events` y `crossings`. Siempre se agregan filas al final, y las horas están en UTC.
+
+`data/auto.db` es el formato viejo (SQLite) y queda solo como respaldo. Si abrís un CSV en Excel, no lo guardes encima: Excel puede cambiar el formato.
 
 | Tabla | Contenido |
 |---|---|

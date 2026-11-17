@@ -27,11 +27,21 @@ Sabemos algo de programación: entendemos el código si lo vemos, pero no escrib
 - **Dónde y en qué formato se guardan los datos** (revisado el 17/11/2026):
   - **Ojo:** el código actual **no lee TABSA**. `collector.py run` solo consulta clima
     y oleaje en Open-Meteo. Todavía no se guarda ningún estado de cruce.
-  - `data/auto.db`: base **SQLite** que escribe el workflow. Después de cada corrida
-    el bot (`corredor-bot`) hace un commit "datos <fecha UTC>" con el archivo entero.
-  - `data/manual.db`: misma estructura, para lo que se carga a mano con
-    `status` / `event` / `crossing`. Todavía no existe en el repo.
-  - Tablas (todas con `id` y `ts_utc` en UTC, formato `2026-11-17T20:07:52Z`):
+  - Desde el 17/11/2026 los datos se guardan en **CSV**, uno por tabla, en `data/<tabla>.csv`
+    (UTF-8, saltos de línea LF, primera fila con los nombres de las columnas, celda vacía si
+    no hay dato). Siempre se **agregan filas al final**: nunca se borran ni se reescriben.
+    Después de cada corrida el bot (`corredor-bot`) hace un commit "datos <fecha UTC>".
+  - El workflow escribe `weather_obs.csv`, `marine_obs.csv` y `collector_errors.csv`. Los
+    comandos manuales (`status` / `event` / `crossing`) escriben `status_obs.csv`,
+    `events.csv` y `crossings.csv`. Como son archivos distintos, git no da conflictos.
+  - `data/auto.db` (SQLite, formato viejo) queda **solo como respaldo**: ya no se escribe.
+    Todas sus filas (69 de clima, 36 de oleaje y 15 errores) se pasaron a los CSV con
+    `migrar_a_csv.py`, que se puede volver a correr sin duplicar. Se sacó la columna `id`,
+    que era solo un contador interno de SQLite.
+  - Clima y oleaje se piden en **una sola consulta** a Open-Meteo para todos los lugares,
+    con un timeout de 15 s y hasta 3 reintentos (esperas de 5, 10 y 20 s). Si igual falla,
+    queda anotado en `collector_errors.csv` y la corrida sigue.
+  - Columnas (`ts_utc` siempre en UTC, formato `2026-11-17T20:07:52Z`):
     - `weather_obs`: una fila por lugar y corrida, para 7 lugares (rio_grande,
       ushuaia, san_sebastian, punta_delgada, bahia_azul, porvenir, punta_arenas).
       Guarda temp_c, wind_kmh, gust_kmh, wind_dir_deg, precip_mm,
@@ -41,8 +51,11 @@ Sabemos algo de programación: entendemos el código si lo vemos, pero no escrib
     - `status_obs`, `events`, `crossings`: carga manual (hoy vacías).
     - `collector_errors`: fallas de cada consulta (ts_utc, where_, error).
   - Todas las filas de una misma corrida comparten el mismo `ts_utc`.
-  - Ejemplo de `weather_obs`:
-    `2026-11-17T20:07:52Z | bahia_azul | 17.1 °C | viento 35.0 | ráfaga 56.5 | dir 35° | lluvia 0.0 | máx. ráfaga 24 h 56.5 | open-meteo`
+  - Ejemplo de `weather_obs.csv`:
+    ```
+    ts_utc,place,temp_c,wind_kmh,gust_kmh,wind_dir_deg,precip_mm,forecast_gust_max_24h_kmh,source
+    2026-11-17T20:29:16Z,bahia_azul,17.0,34.7,56.5,34.0,0.0,56.5,open-meteo
+    ```
   - Ver los datos: `git pull` y después `python collector.py report`, o
     `python collector.py export datos.csv`.
 

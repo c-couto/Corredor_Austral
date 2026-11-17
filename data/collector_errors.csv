@@ -1,0 +1,16 @@
+ts_utc,where_,error
+2026-11-16T01:22:52Z,weather:rio_grande,<urlopen error _ssl.c:1063: The handshake operation timed out>
+2026-11-16T01:23:17Z,weather:ushuaia,<urlopen error _ssl.c:1063: The handshake operation timed out>
+2026-11-16T01:23:42Z,weather:san_sebastian,<urlopen error _ssl.c:1063: The handshake operation timed out>
+2026-11-16T01:24:07Z,weather:punta_delgada,<urlopen error _ssl.c:1063: The handshake operation timed out>
+2026-11-16T01:24:32Z,weather:bahia_azul,<urlopen error _ssl.c:1063: The handshake operation timed out>
+2026-11-16T01:24:57Z,weather:porvenir,<urlopen error _ssl.c:1063: The handshake operation timed out>
+2026-11-16T01:25:22Z,weather:punta_arenas,<urlopen error _ssl.c:1063: The handshake operation timed out>
+2026-11-16T18:54:41Z,weather:punta_arenas,<urlopen error _ssl.c:1063: The handshake operation timed out>
+2026-11-17T19:51:53Z,weather:rio_grande,<urlopen error _ssl.c:1063: The handshake operation timed out>
+2026-11-17T19:52:18Z,weather:ushuaia,<urlopen error _ssl.c:1063: The handshake operation timed out>
+2026-11-17T19:52:43Z,weather:san_sebastian,<urlopen error _ssl.c:1063: The handshake operation timed out>
+2026-11-17T19:53:08Z,weather:punta_delgada,<urlopen error _ssl.c:1063: The handshake operation timed out>
+2026-11-17T19:53:34Z,weather:bahia_azul,<urlopen error _ssl.c:1063: The handshake operation timed out>
+2026-11-17T19:53:59Z,weather:porvenir,<urlopen error _ssl.c:1063: The handshake operation timed out>
+2026-11-17T19:54:24Z,weather:punta_arenas,<urlopen error _ssl.c:1063: The handshake operation timed out>

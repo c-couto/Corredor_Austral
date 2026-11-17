@@ -1,15 +1,15 @@
 # Recolector gratis en la nube (GitHub Actions)
 
-Una tarea de GitHub corre `collector.py run` cada 30 minutos y guarda los datos en `data/auto.db` dentro de un repositorio **privado**. Tu PC no hace falta.
+Una tarea de GitHub corre `collector.py run` cada 30 minutos y guarda los datos en archivos CSV dentro de `data/`, en de un repositorio **privado**. Tu PC no hace falta.
 
 Antes de empezar, revisá en tu cuenta cuántos minutos gratis de Actions tenés por mes en repositorios privados: este plan usa aproximadamente 1 minuto por ejecución (unas 1.440 por mes). Si no alcanza, cambiá el cron a una vez por hora (está explicado en el archivo del workflow).
 
 ## Cómo funciona con tus datos manuales
 
-- La nube escribe **solo** `data/auto.db`.
-- Vos escribís **solo** `data/manual.db` (con los comandos `status`, `event` y `crossing`).
+- La nube escribe **solo** `data/weather_obs.csv`, `data/marine_obs.csv` y `data/collector_errors.csv`.
+- Vos escribís **solo** `data/status_obs.csv`, `data/events.csv` y `data/crossings.csv` (con los comandos `status`, `event` y `crossing`).
 - Así nunca editan el mismo archivo y git no da conflictos.
-- `report` y `export` leen las dos bases juntas.
+- `report` y `export` leen todos juntos.
 
 ## Paso a paso (Windows, PowerShell)
 
@@ -76,7 +76,7 @@ Para cargar una demora real:
 
 ```
 python collector.py crossing punta_delgada_bahia_azul 90 --note "cola de 20 camiones"
-git add data/manual.db
+git add data/crossings.csv
 git commit -m "demora"
 git pull --rebase
 git push
