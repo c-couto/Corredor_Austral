@@ -1,2 +1,8 @@
-# Los CSV de datos siempre con saltos de línea LF (igual en Windows y en GitHub)
-data/*.csv text eol=lf
+# Todo el texto con saltos de línea LF (igual en Windows y en GitHub).
+* text=auto eol=lf
+
+# Los datos: siempre LF, para que agregar filas no mezcle formatos.
+data/**/*.csv text eol=lf
+
+# Binarios: no tocar.
+*.db binary

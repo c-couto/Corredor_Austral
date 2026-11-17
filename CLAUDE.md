@@ -25,39 +25,39 @@ Sabemos algo de programación: entendemos el código si lo vemos, pero no escrib
   GitHub (`7,37 * * * *`) queda de respaldo porque GitHub lo saltea seguido.
 - El token que usa cron-job.org vence el 17/12/2026.
 - **Dónde y en qué formato se guardan los datos** (revisado el 17/11/2026):
-  - **Ojo:** el código actual **no lee TABSA**. `collector.py run` solo consulta clima
-    y oleaje en Open-Meteo. Todavía no se guarda ningún estado de cruce.
-  - Desde el 17/11/2026 los datos se guardan en **CSV**, uno por tabla, en `data/<tabla>.csv`
-    (UTF-8, saltos de línea LF, primera fila con los nombres de las columnas, celda vacía si
-    no hay dato). Siempre se **agregan filas al final**: nunca se borran ni se reescriben.
-    Después de cada corrida el bot (`corredor-bot`) hace un commit "datos <fecha UTC>".
-  - El workflow escribe `weather_obs.csv`, `marine_obs.csv` y `collector_errors.csv`. Los
-    comandos manuales (`status` / `event` / `crossing`) escriben `status_obs.csv`,
-    `events.csv` y `crossings.csv`. Como son archivos distintos, git no da conflictos.
-  - `data/auto.db` (SQLite, formato viejo) queda **solo como respaldo**: ya no se escribe.
-    Todas sus filas (69 de clima, 36 de oleaje y 15 errores) se pasaron a los CSV con
-    `migrar_a_csv.py`, que se puede volver a correr sin duplicar. Se sacó la columna `id`,
-    que era solo un contador interno de SQLite.
+  - **Ojo:** el código actual **no lee TABSA**. `python -m corredor run` solo consulta
+    clima y oleaje en Open-Meteo. Todavía no se guarda ningún estado de cruce.
+  - **CSV, uno por tabla.** El diccionario completo (columnas y unidades) está en
+    `data/README.md`. Siempre se **agregan filas al final**: nunca se borran ni se reescriben.
+    - `data/auto/`: lo escribe solo el workflow (`weather_obs.csv`, `marine_obs.csv`,
+      `collector_errors.csv`). Después de cada corrida el bot (`corredor-bot`) hace un
+      commit "datos <fecha UTC>".
+    - `data/manual/`: lo escriben solo los comandos `status` / `event` / `crossing`.
+    - `data/legacy/auto.db`: el formato viejo (SQLite), solo como respaldo. Sus filas se
+      pasaron a `data/auto/` con `scripts/migrar_a_csv.py`, que se puede volver a correr
+      sin duplicar. Se sacó la columna `id` de SQLite.
   - Clima y oleaje se piden en **una sola consulta** a Open-Meteo para todos los lugares,
     con un timeout de 15 s y hasta 3 reintentos (esperas de 5, 10 y 20 s). Si igual falla,
     queda anotado en `collector_errors.csv` y la corrida sigue.
-  - Columnas (`ts_utc` siempre en UTC, formato `2026-11-17T20:07:52Z`):
-    - `weather_obs`: una fila por lugar y corrida, para 7 lugares (rio_grande,
-      ushuaia, san_sebastian, punta_delgada, bahia_azul, porvenir, punta_arenas).
-      Guarda temp_c, wind_kmh, gust_kmh, wind_dir_deg, precip_mm,
-      forecast_gust_max_24h_kmh y source.
-    - `marine_obs`: oleaje en punta_delgada, bahia_azul y ushuaia. Guarda
-      wave_height_m, wave_period_s, wave_dir_deg y source.
-    - `status_obs`, `events`, `crossings`: carga manual (hoy vacías).
-    - `collector_errors`: fallas de cada consulta (ts_utc, where_, error).
-  - Todas las filas de una misma corrida comparten el mismo `ts_utc`.
-  - Ejemplo de `weather_obs.csv`:
+  - Ejemplo de `data/auto/weather_obs.csv`:
     ```
     ts_utc,place,temp_c,wind_kmh,gust_kmh,wind_dir_deg,precip_mm,forecast_gust_max_24h_kmh,source
     2026-11-17T20:29:16Z,bahia_azul,17.0,34.7,56.5,34.0,0.0,56.5,open-meteo
     ```
-  - Ver los datos: `git pull` y después `python collector.py report`, o
-    `python collector.py export datos.csv`.
+  - Ver los datos: `git pull` y después `python -m corredor report`, o
+    `python -m corredor export datos.csv`.
+
+## Estructura del código
+- `corredor/` (paquete Python, solo biblioteca estándar, Python ≥ 3.9). Se corre con
+  `python -m corredor <comando>` desde la raíz.
+  - `config.py`: lugares, carpetas y parámetros de red.
+  - `storage.py`: tablas (`Table`), y las funciones `append_rows` / `read_rows`.
+  - `net.py`: `get_json` con timeout y reintentos.
+  - `sources/`: un módulo por fuente externa (`open_meteo.py`; el lector de TABSA va acá).
+  - `collect.py`: una recolección. `cli.py`: los comandos.
+- `tests/`: pruebas con `unittest` (`python -m unittest -v`). Corren en GitHub con el
+  workflow `tests` cuando cambia el código. Nunca escriben en `data/`.
+- **No renombrar `.github/workflows/collect.yml`**: cron-job.org lo dispara por ese nombre.
 
 ## Reglas sobre los datos
 - Los datos recolectados son el activo principal del proyecto: **nunca** borrar ni

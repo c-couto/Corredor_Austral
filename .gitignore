@@ -1,6 +1,19 @@
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Editor / sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Salidas locales (exportaciones, logs, pruebas a mano)
 *.log
 corredor.db
 prueba.csv
 datos.csv
+/export*.csv

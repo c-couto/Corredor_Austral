@@ -1,0 +1,17 @@
+[project]
+name = "corredor-austral"
+version = "0.3.0"
+description = "Recolector de datos para el cruce del Estrecho de Magallanes"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []  # solo biblioteca estándar
+
+[project.scripts]
+corredor = "corredor.cli:main"
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["corredor*"]

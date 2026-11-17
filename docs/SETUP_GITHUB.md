@@ -1,28 +1,21 @@
 # Recolector gratis en la nube (GitHub Actions)
 
-Una tarea de GitHub corre `collector.py run` cada 30 minutos y guarda los datos en archivos CSV dentro de `data/`, en de un repositorio **privado**. Tu PC no hace falta.
+Una tarea de GitHub corre `python -m corredor run` cada 30 minutos y guarda los datos en archivos CSV dentro de `data/auto/`, en un repositorio **privado**. Tu PC no hace falta.
 
 Antes de empezar, revisá en tu cuenta cuántos minutos gratis de Actions tenés por mes en repositorios privados: este plan usa aproximadamente 1 minuto por ejecución (unas 1.440 por mes). Si no alcanza, cambiá el cron a una vez por hora (está explicado en el archivo del workflow).
 
 ## Cómo funciona con tus datos manuales
 
-- La nube escribe **solo** `data/weather_obs.csv`, `data/marine_obs.csv` y `data/collector_errors.csv`.
-- Vos escribís **solo** `data/status_obs.csv`, `data/events.csv` y `data/crossings.csv` (con los comandos `status`, `event` y `crossing`).
+- La nube escribe **solo** los CSV de `data/auto/`.
+- Vos escribís **solo** los CSV de `data/manual/` (con los comandos `status`, `event` y `crossing`).
 - Así nunca editan el mismo archivo y git no da conflictos.
 - `report` y `export` leen todos juntos.
 
 ## Paso a paso (Windows, PowerShell)
 
-### 1. Pasá tus primeros datos a la carpeta nueva
+### 1. Datos iniciales
 
-Reemplazá los archivos del proyecto por los de este paquete (`collector.py`, `README.md`, etc.) y después:
-
-```
-mkdir data
-copy corredor.db data\auto.db
-```
-
-Tu primera recolección queda como punto de partida.
+Ya está hecho: el repositorio incluye los datos en `data/` (ver `data/README.md`). Si arrancás de cero, no hace falta nada: la primera corrida crea los CSV.
 
 ### 2. Apagá la tarea programada de tu PC (si la creaste)
 
@@ -32,7 +25,7 @@ Si no, tu PC y la nube escribirían en el mismo archivo y se pisarían:
 schtasks /delete /tn "CorredorAustral" /f
 ```
 
-No vuelvas a correr `python collector.py run` en tu PC una vez que la nube esté andando. Para ver datos, usá `report` o `export`.
+No vuelvas a correr `python -m corredor run` en tu PC una vez que la nube esté andando. Para ver datos, usá `report` o `export`.
 
 ### 3. Creá el repositorio privado
 
@@ -53,7 +46,7 @@ git remote add origin URL_DE_TU_REPO
 git push -u origin main
 ```
 
-Verificá con `git status` que `data/auto.db` haya quedado incluido. Con un repositorio privado, nadie más ve tu código ni tus datos.
+Verificá con `git status` que la carpeta `data/` haya quedado incluida. Con un repositorio privado, nadie más ve tu código ni tus datos.
 
 ### 5. Activá y probá
 
@@ -69,14 +62,14 @@ Antes de mirar o cargar datos, traé lo último de la nube:
 
 ```
 git pull
-python collector.py report
+python -m corredor report
 ```
 
 Para cargar una demora real:
 
 ```
-python collector.py crossing punta_delgada_bahia_azul 90 --note "cola de 20 camiones"
-git add data/crossings.csv
+python -m corredor crossing punta_delgada_bahia_azul 90 --note "cola de 20 camiones"
+git add data/manual/
 git commit -m "demora"
 git pull --rebase
 git push
