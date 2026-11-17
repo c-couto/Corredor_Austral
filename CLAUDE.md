@@ -48,7 +48,7 @@ Sabemos algo de programación: entendemos el código si lo vemos, pero no escrib
     `python -m corredor export datos.csv`.
 
 ## Estructura del código
-- `corredor/` (paquete Python, solo biblioteca estándar, Python ≥ 3.9). Se corre con
+- `corredor/` (paquete Python, solo biblioteca estándar, Python ≥ 3.10). Se corre con
   `python -m corredor <comando>` desde la raíz.
   - `config.py`: lugares, carpetas y parámetros de red.
   - `storage.py`: tablas (`Table`), y las funciones `append_rows` / `read_rows`.

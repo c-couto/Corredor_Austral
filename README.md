@@ -2,7 +2,7 @@
 
 Registra clima, viento y oleaje en puntos clave del corredor hacia Tierra del Fuego, y te permite cargar a mano estados y demoras reales. Con el tiempo, esos datos son la base de un modelo para anticipar demoras.
 
-No necesita instalar nada: solo Python 3.9 o superior.
+No necesita instalar nada: solo Python 3.10 o superior.
 
 ## Estructura del proyecto
 

@@ -3,7 +3,7 @@ name = "corredor-austral"
 version = "0.3.0"
 description = "Recolector de datos para el cruce del Estrecho de Magallanes"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = []  # solo biblioteca estándar
 
 [project.scripts]
