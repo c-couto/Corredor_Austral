@@ -17,3 +17,6 @@ corredor.db
 prueba.csv
 datos.csv
 /export*.csv
+
+# Web generada (se arma en cada corrida, no se guarda en el repo)
+_site/

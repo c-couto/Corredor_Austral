@@ -7,6 +7,12 @@
   python -m corredor crossing punta_delgada_bahia_azul 150 --note "cola de 20 camiones"
   python -m corredor report                   # últimos datos
   python -m corredor export datos.csv         # junta todo en un solo CSV
+
+BETA (web y avisos):
+  python -m corredor web                      # genera la web en _site/index.html
+  python -m corredor resumen                  # el mensaje que va a Telegram / WhatsApp
+  python -m corredor notify                   # avisa por Telegram si cambió el riesgo
+  python -m corredor notify --force           # manda el resumen igual (para probar)
 """
 
 from __future__ import annotations
@@ -90,6 +96,22 @@ def cmd_export(args: argparse.Namespace) -> None:
     print(f"Exportado a {out}")
 
 
+def cmd_web(args: argparse.Namespace) -> None:
+    from .web import build_site
+    path = build_site(Path(args.out))
+    print(f"Web generada: {path.resolve()}")
+
+
+def cmd_resumen(args: argparse.Namespace) -> None:
+    from .conditions import snapshot, summary_text
+    print(summary_text(snapshot()))
+
+
+def cmd_notify(args: argparse.Namespace) -> None:
+    from .alerts import notify
+    print(notify(force=args.force))
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="python -m corredor", description="Corredor Austral - recolector de datos")
     p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -125,6 +147,16 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("export", help="juntar todo en un solo CSV")
     s.add_argument("file")
     s.set_defaults(fn=cmd_export)
+
+    s = sub.add_parser("web", help="BETA: generar la web estática")
+    s.add_argument("--out", default=str(config.ROOT / "_site"), help="carpeta de salida (por defecto _site/)")
+    s.set_defaults(fn=cmd_web)
+
+    sub.add_parser("resumen", help="BETA: ver el resumen para Telegram / WhatsApp").set_defaults(fn=cmd_resumen)
+
+    s = sub.add_parser("notify", help="BETA: avisar por Telegram si cambió el riesgo")
+    s.add_argument("--force", action="store_true", help="enviar el resumen aunque no haya cambios")
+    s.set_defaults(fn=cmd_notify)
     return p
 
 

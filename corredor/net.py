@@ -13,10 +13,8 @@ from typing import Any, Mapping
 from . import config
 
 
-def get_json(url: str, params: Mapping[str, Any]) -> Any:
-    """GET que devuelve JSON. Timeout de 15 s y hasta 3 reintentos con espera creciente."""
-    full = url + "?" + urllib.parse.urlencode(params)
-    req = urllib.request.Request(full, headers={"User-Agent": config.USER_AGENT})
+def _request_json(req: urllib.request.Request) -> Any:
+    """Hace el pedido con timeout de 15 s y hasta 3 reintentos con espera creciente."""
     waits = config.RETRY_WAITS_S
     last_error: BaseException | None = None
     for attempt in range(len(waits) + 1):
@@ -37,3 +35,19 @@ def get_json(url: str, params: Mapping[str, Any]) -> Any:
             last_error = e
     assert last_error is not None
     raise last_error
+
+
+def get_json(url: str, params: Mapping[str, Any]) -> Any:
+    """GET que devuelve JSON."""
+    full = url + "?" + urllib.parse.urlencode(params)
+    return _request_json(urllib.request.Request(full, headers={"User-Agent": config.USER_AGENT}))
+
+
+def post_json(url: str, payload: Mapping[str, Any]) -> Any:
+    """POST con cuerpo JSON que devuelve JSON."""
+    return _request_json(urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"User-Agent": config.USER_AGENT, "Content-Type": "application/json"},
+        method="POST",
+    ))

@@ -55,6 +55,10 @@ Sabemos algo de programación: entendemos el código si lo vemos, pero no escrib
   - `net.py`: `get_json` con timeout y reintentos.
   - `sources/`: un módulo por fuente externa (`open_meteo.py`; el lector de TABSA va acá).
   - `collect.py`: una recolección. `cli.py`: los comandos.
+  - BETA: `conditions.py` calcula el riesgo por viento de cada cruce y es la única fuente
+    para todos los canales. `web.py` genera `_site/index.html`, que no se guarda en el repo.
+    `alerts.py` detecta cambios de nivel y avisa por `channels/telegram.py`, que toma el
+    token de los Secrets. WhatsApp por ahora es solo un botón para compartir en la web.
 - `tests/`: pruebas con `unittest` (`python -m unittest -v`). Corren en GitHub con el
   workflow `tests` cuando cambia el código. Nunca escriben en `data/`.
 - **No renombrar `.github/workflows/collect.yml`**: cron-job.org lo dispara por ese nombre.

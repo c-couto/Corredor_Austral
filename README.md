@@ -77,6 +77,28 @@ python -m corredor export datos.csv
 
 Podés abrir el CSV en Excel o en Python (pandas) para empezar a buscar relaciones entre viento y demoras.
 
+## BETA: web, Telegram y WhatsApp
+
+Con los datos recolectados, la BETA estima el **riesgo de demora por viento** en cada cruce:
+
+| Riesgo | Ráfaga actual (provisorio) |
+|---|---|
+| 🟢 bajo | menos de 50 km/h |
+| 🟡 medio | desde 50 km/h |
+| 🔴 alto | desde 70 km/h |
+
+Para cada cruce toma la ráfaga más alta entre sus puntos: Primera Angostura usa Punta Delgada y Bahía Azul, y Punta Arenas – Porvenir usa esas dos ciudades. **No es el estado oficial de TABSA**, y así lo dicen todos los canales. Los umbrales están en `corredor/config.py` y se van a ajustar cuando tengamos el historial real de suspensiones.
+
+```
+python -m corredor web            # genera la web en _site/index.html (abrila con doble clic)
+python -m corredor resumen        # muestra el mensaje que va a Telegram y WhatsApp
+python -m corredor notify --force # manda ese mensaje por Telegram (si está configurado)
+```
+
+- **Web:** una sola página, pensada para el celular y señal mala. Muestra el riesgo actual, el pronóstico de 24 h, un gráfico de las últimas 24 h y los demás puntos de la ruta. Si los datos tienen más de 2 h, lo avisa.
+- **Telegram:** el workflow `collect` manda un aviso cuando un cruce cambia de nivel, por ejemplo de bajo a medio. Para activarlo hay que cargar los Secrets `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` en GitHub. Sin ellos no envía nada.
+- **WhatsApp:** botón "Compartir por WhatsApp" en la web, que arma el mensaje con el resumen. No tiene costo. Los avisos automáticos por WhatsApp necesitan la API de Meta, que es paga (fase 5).
+
 ## Qué falta (y cómo conseguirlo)
 
 - **Fuentes de mar y aire:** hoy solo hay oleaje de modelo y carga manual. En las conversaciones preguntá qué datos de barcos y vuelos de carga usan o dónde los miran.

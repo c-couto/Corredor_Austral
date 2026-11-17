@@ -39,3 +39,14 @@ jobs:
           git commit -m "datos $(date -u +%Y-%m-%dT%H:%MZ)"
           git pull --rebase
           git push
+
+      # BETA: avisa por Telegram si cambió el riesgo por viento. Va DESPUÉS de guardar
+      # los datos y aunque falle no marca error: los datos son lo más importante.
+      # Sin los Secrets TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID no envía nada.
+      - name: Avisar por Telegram
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          CORREDOR_SITE_URL: ${{ vars.CORREDOR_SITE_URL }}
+        run: python3 -m corredor notify
