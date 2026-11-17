@@ -22,6 +22,7 @@ Todos los comandos:
 |---|---|
 | `run` | Una recolección: clima + pronóstico horario + estado de TABSA |
 | `tabsa` | Lee TABSA y lo muestra, sin guardar (para probar) |
+| `suspensiones` | Suspensiones registradas: inicio, fin (UTC) y duración |
 | `train` | Entrena el modelo de riesgo con los datos guardados (`--if-stale`: solo si no se entrenó hoy) |
 | `web` | Genera la web en `_site/index.html` |
 | `resumen` | Muestra el resumen que va a Telegram y WhatsApp |
@@ -36,20 +37,23 @@ Todos los comandos:
 3. **Modelo** (una vez por día, segundos): cada lectura de TABSA es un ejemplo "este viento → este estado". Una regresión logística aprende la **probabilidad de que el cruce no esté normal** según ráfaga, viento y dirección. Mientras no haya suficientes suspensiones registradas usa una **regla base** (50 km/h de ráfaga → 20 %, 70 km/h → 50 %), y el modelo aprendido solo la reemplaza si **predice mejor en datos que no vio**.
 4. **Canales:** la web, Telegram y WhatsApp muestran lo mismo (sale de `corredor/conditions.py`).
 
-| Riesgo | Probabilidad de que el cruce no esté normal |
-|---|---|
-| 🟢 bajo | menos de 20 % |
-| 🟡 medio | desde 20 % |
-| 🔴 alto | desde 50 % |
+**¿Qué significa el %?** Es la **probabilidad de que TABSA suspenda el cruce** (o un zarpe) por viento. No mide el peligro de cruzar: si el cruce opera, es seguro. Se muestra siempre junto al estado oficial y con una frase fácil:
 
-El riesgo es una **estimación**: el estado oficial siempre se muestra al lado y se invita a confirmar con TABSA.
+| Frase | Probabilidad de suspensión |
+|---|---|
+| 🟢 Se espera cruce normal | menos de 20 % |
+| 🟡 Atención: puede suspenderse | desde 20 % |
+| 🔴 Probable suspensión | desde 50 % |
+
+Si TABSA ya publicó una suspensión, eso manda: la frase pasa a "Suspendido según TABSA".
 
 ### La web
-- **Semáforo por cruce:** estado oficial, medidor de probabilidad, viento con su dirección y una franja de 48 h coloreada hora por hora.
-- **¿A qué hora salgo?:** elegís el origen (Río Gallegos, Punta Arenas, Río Grande, Ushuaia) y te muestra el riesgo a la hora en que llegarías a Primera Angostura y la mejor salida. Las horas de manejo están en `PLANNER_ORIGINS` (`corredor/config.py`).
-- **Próximas salidas Punta Arenas ↔ Porvenir:** estado TABSA + riesgo a la hora de zarpe.
-- **Historial:** suspensiones con su duración y, con una semana de datos, un mapa de días y horas críticas.
-- **Cómo calculamos el riesgo:** si cada cruce usa el modelo aprendido o la regla base, y por qué.
+- **Encabezado:** bandera de Tierra del Fuego, reloj en vivo de la región (UTC-3) y clima actual de Primera Angostura, Punta Arenas, Porvenir, Río Grande y Ushuaia (temperatura, cielo y viento).
+- **Por cruce:** estado oficial, frase fácil, probabilidad de suspensión, viento con su dirección y un **gráfico de ráfagas** (últimas 24 h medidas + próximas 48 h pronosticadas) sobre zonas de color que muestran desde cuánto viento sube la probabilidad. Marca "ahora" y los períodos en que TABSA tuvo el cruce suspendido. Debajo, **en qué horario podría suspenderse** ("Puede suspenderse jueves 13:00–19:00").
+- **¿A qué hora salgo?:** elegís el origen (Río Gallegos, Punta Arenas, Río Grande, Ushuaia) y te muestra la probabilidad de suspensión a la hora en que llegarías a Primera Angostura y la mejor salida. Las horas de manejo están en `PLANNER_ORIGINS` (`corredor/config.py`).
+- **Próximos zarpes Punta Arenas ↔ Porvenir:** estado TABSA + probabilidad de suspensión de cada zarpe.
+- **Historial de suspensiones** con su duración y, con una semana de datos, un mapa de días y horas críticas.
+- **Cómo calculamos la probabilidad:** si cada cruce usa el modelo aprendido o la regla base, y por qué.
 - **Plan Flota y "Dónde esperar":** espacios comerciales (ver el modelo de negocio).
 
 ### Telegram y WhatsApp
@@ -130,7 +134,7 @@ Los datos son el activo principal del proyecto. Reglas:
 
 | Carpeta | Quién escribe | Archivos |
 |---|---|---|
-| `data/auto/` | Solo el workflow `collect` (bot) | `weather_obs.csv`, `marine_obs.csv`, `tabsa_estado.csv`, `tabsa_programados.csv`, `tabsa_cambios.csv`, `collector_errors.csv` |
+| `data/auto/` | Solo el workflow `collect` (bot) | `weather_obs.csv`, `marine_obs.csv`, `tabsa_estado.csv`, `tabsa_programados.csv`, `tabsa_cambios.csv`, `pronosticos/AAAA-MM.csv`, `collector_errors.csv` |
 | `data/manual/` | Solo vos, con `status / event / crossing` | `status_obs.csv`, `events.csv`, `crossings.csv` (se crean con la primera carga) |
 | `data/model/` | El workflow, una vez por día | `modelo.json`: el modelo entrenado y sus métricas |
 | `data/legacy/` | Nadie (respaldo) | `auto.db`: formato viejo (SQLite), hasta el 17/11/2026. Todas sus filas ya están en `data/auto/` |
@@ -155,6 +159,20 @@ Los datos son el activo principal del proyecto. Reglas:
 | `subject` | El cruce (`primera_angostura`) o la salida (`2026-11-18 08:00 Porvenir -> Punta Arenas`) |
 | `previous` | Estado anterior (vacío la primera vez que se ve un cruce) |
 | `current` | Estado nuevo |
+
+#### `data/auto/pronosticos/AAAA-MM.csv`: el pronóstico tal como estaba en cada corrida
+Un archivo por mes. En cada corrida se guardan las próximas 48 h de Punta Delgada y Bahía Azul (las dos orillas de Primera Angostura). Sirve para comparar después lo que se pronosticó con lo que pasó, sin usar datos del futuro.
+
+| Columna | Unidad | Descripción |
+|---|---|---|
+| `issued_utc` | | Hora de la corrida (cuándo se tenía este pronóstico); igual al `ts_utc` del resto |
+| `place` | | `punta_delgada` o `bahia_azul` |
+| `valid_utc` | | Hora pronosticada |
+| `lead_h` | h | Horas entre `issued_utc` y `valid_utc` (negativo = la hora en curso) |
+| `wind_kmh`, `gust_kmh`, `wind_dir_deg` | km/h, grados | Viento, ráfaga y de dónde viene |
+| `wave_height_m`, `wave_period_s`, `wave_dir_deg` | m, s, grados | Oleaje (Open-Meteo Marine) |
+| `sea_level_m` | m | Nivel del mar (marea + viento). La grilla es gruesa: sirve para la fase de la marea, no para su altura exacta |
+| `source` | | Fuentes usadas |
 
 #### `data/auto/weather_obs.csv`: clima
 Una fila por lugar y corrida.

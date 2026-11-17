@@ -40,7 +40,8 @@ def parse(data: dict) -> dict:
         })
     first = series[0].get("data") or {}
     now = (first.get("instant") or {}).get("details") or {}
-    precip = ((first.get("next_1_hours") or {}).get("details") or {}).get("precipitation_amount")
+    next_1h = first.get("next_1_hours") or {}
+    precip = (next_1h.get("details") or {}).get("precipitation_amount")
     gusts_24h = [h["gust"] for h in hourly[:24] if h["gust"] is not None]
     return {
         "temp_c": num(now.get("air_temperature")),
@@ -49,6 +50,7 @@ def parse(data: dict) -> dict:
         "wind_dir_deg": num(now.get("wind_from_direction")),
         "precip_mm": num(precip),
         "forecast_gust_max_24h_kmh": max(gusts_24h) if gusts_24h else None,
+        "symbol": (next_1h.get("summary") or {}).get("symbol_code"),  # p. ej. "rain", "clearsky_day"
         "hourly": hourly,
     }
 

@@ -64,10 +64,14 @@ def open_meteo_response(n_places, hours=0, gust=30):
     }
     if hours:
         item["hourly"] = {
-            "time": [f"2026-11-17T{h % 24:02d}:00" for h in range(hours)],
+            "time": [f"2026-11-{17 + h // 24:02d}T{h % 24:02d}:00" for h in range(hours)],
             "wind_speed_10m": [20] * hours,
             "wind_gusts_10m": [30 + h for h in range(hours)],
             "wind_direction_10m": [270] * hours,
+            "wave_height": [1.0] * hours,
+            "wave_period": [4.0] * hours,
+            "wave_direction": [200] * hours,
+            "sea_level_height_msl": [round(-2 + h * 0.5, 2) for h in range(hours)],
         }
     return item if n_places == 1 else [item] * n_places
 

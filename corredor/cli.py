@@ -32,7 +32,8 @@ def cmd_run(args: argparse.Namespace) -> None:
     r = collect_once()
     marine = f" · oleaje: {r.marine}/{len(config.MARINE_PLACES)} puntos" if config.WEATHER_SOURCE == "open_meteo" else ""
     print(f"{storage.now_utc()} clima ({config.WEATHER_SOURCE}): {r.weather}/{len(config.PLACES)} puntos{marine}"
-          f" · TABSA: {r.tabsa_crossings} cruces, {r.tabsa_sailings} salidas, {r.tabsa_changes} cambios")
+          f" · TABSA: {r.tabsa_crossings} cruces, {r.tabsa_sailings} salidas, {r.tabsa_changes} cambios"
+          f" · pronóstico: {r.forecast_rows} filas")
 
 
 def cmd_tabsa(args: argparse.Namespace) -> None:
@@ -42,6 +43,20 @@ def cmd_tabsa(args: argparse.Namespace) -> None:
         print(f"{c.name:20} {c.status}")
     for s in page.sailings:
         print(f"{s.date} {s.departure}  {s.origin} -> {s.destination:15} {s.status}")
+
+
+def cmd_suspensiones(args: argparse.Namespace) -> None:
+    from .conditions import fmt_duration, snapshot
+    from .timeutil import fmt_local, format_ts
+    snap = snapshot(fetch_forecast=False)
+    if not snap.episodes:
+        print("Todavía no hay suspensiones registradas.")
+        return
+    print(f"{'cruce':20} {'estado':12} {'inicio (UTC)':22} {'fin (UTC)':22} duración")
+    for e in reversed(snap.episodes):
+        end = format_ts(e.end) if e.end else "en curso"
+        print(f"{e.name:20} {e.status:12} {format_ts(e.start):22} {end:22} {fmt_duration(e.duration(snap.now))}"
+              f"   (local {fmt_local(e.start)})")
 
 
 def cmd_train(args: argparse.Namespace) -> None:
@@ -172,6 +187,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.set_defaults(fn=cmd_export)
 
     sub.add_parser("tabsa", help="leer el estado de TABSA y mostrarlo (no guarda)").set_defaults(fn=cmd_tabsa)
+    sub.add_parser("suspensiones", help="suspensiones registradas: inicio, fin y duración").set_defaults(
+        fn=cmd_suspensiones)
 
     s = sub.add_parser("train", help="entrenar el modelo de riesgo con los datos")
     s.add_argument("--if-stale", action="store_true", help="solo si no se entrenó hoy")

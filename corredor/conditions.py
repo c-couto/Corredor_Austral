@@ -105,6 +105,7 @@ class Snapshot:
     tabsa_samples: int
     forecast_source: str | None
     now: datetime
+    current_weather: dict[str, dict] = field(default_factory=dict)  # clima del momento por lugar
 
     def is_stale(self, now: datetime | None = None) -> bool:
         if self.latest is None:
@@ -266,6 +267,11 @@ def snapshot(now: datetime | None = None, fetch_forecast: bool = True) -> Snapsh
     places: dict[str, dict] = {}
     for _, by_place in weather_runs:
         places.update(by_place)
+    current_weather = {p: {k: num(v) if k != "symbol" else v for k, v in row.items()}
+                       for p, row in ((fc or {}).get("current") or {}).items()}
+    for p, row in places.items():  # sin caché: lo último guardado en el CSV
+        current_weather.setdefault(p, {k: num(row.get(k)) for k in
+                                       ("temp_c", "wind_kmh", "gust_kmh", "wind_dir_deg", "precip_mm")})
 
     return Snapshot(
         routes=routes,
@@ -279,7 +285,94 @@ def snapshot(now: datetime | None = None, fetch_forecast: bool = True) -> Snapsh
         tabsa_samples=sum(c[0] for c in heat.values()),
         forecast_source=(fc or {}).get("source"),
         now=now,
+        current_weather=current_weather,
     )
+
+
+# ------------------------------------------------------------------ lectura fácil
+
+VERDICT = {
+    "bajo": "Se espera cruce normal",
+    "medio": "Atención: puede suspenderse",
+    "alto": "Probable suspensión",
+    None: "Sin datos suficientes",
+}
+
+
+def verdict(snap: "Snapshot", st: RouteStatus) -> tuple[str, str]:
+    """(nivel, frase) para mostrar arriba de cada cruce. El estado oficial manda."""
+    status, _ = snap.official_for(st)
+    if status and is_normal(status) is False:
+        return "alto", f"Suspendido según TABSA ({status.lower()})"
+    return (st.level or "nd"), VERDICT[st.level]
+
+
+def closure_windows(st: RouteStatus, min_level: str = "medio",
+                    hours: int = 48) -> list[tuple[HourRisk, HourRisk, str]]:
+    """Tramos seguidos de horas con nivel >= min_level: [(desde, hasta, peor nivel)]."""
+    order = {"bajo": 0, "medio": 1, "alto": 2}
+    out: list[tuple[HourRisk, HourRisk, str]] = []
+    run: list[HourRisk] = []
+    for h in list(st.hours[:hours]) + [None]:
+        lvl = model.level_for_prob(h.p) if h else None
+        if h and order.get(lvl, -1) >= order[min_level]:
+            run.append(h)
+            continue
+        if run:
+            worst = max((model.level_for_prob(x.p) for x in run), key=lambda l: order[l])
+            out.append((run[0], run[-1], worst))
+            run = []
+    return out
+
+
+def gust_threshold(route_model: model.RouteModel, p: float, dir_deg: float | None = None) -> float | None:
+    """Ráfaga (km/h) a partir de la cual el modelo llega a la probabilidad p (búsqueda binaria)."""
+    lo, hi = 0.0, 200.0
+    if route_model.predict(hi, hi * 0.6, dir_deg) < p:
+        return None
+    for _ in range(40):
+        mid = (lo + hi) / 2
+        if route_model.predict(mid, mid * 0.6, dir_deg) >= p:
+            hi = mid
+        else:
+            lo = mid
+    return hi
+
+
+WMO = (  # (códigos, texto, ícono de día, ícono de noche)
+    ((0,), "Despejado", "☀️", "🌙"),
+    ((1, 2), "Parcialmente nublado", "⛅", "☁️"),
+    ((3,), "Nublado", "☁️", "☁️"),
+    ((45, 48), "Niebla", "🌫️", "🌫️"),
+    ((51, 53, 55, 56, 57), "Llovizna", "🌦️", "🌧️"),
+    ((61, 63, 65, 66, 67), "Lluvia", "🌧️", "🌧️"),
+    ((71, 73, 75, 77), "Nieve", "🌨️", "🌨️"),
+    ((80, 81, 82), "Chaparrones", "🌦️", "🌧️"),
+    ((85, 86), "Chaparrones de nieve", "🌨️", "🌨️"),
+    ((95, 96, 99), "Tormenta", "⛈️", "⛈️"),
+)
+MET_SYMBOLS = (("thunder", 95), ("snow", 71), ("sleet", 66), ("rainshowers", 80), ("rain", 61),
+               ("fog", 45), ("partlycloudy", 2), ("fair", 1), ("cloudy", 3), ("clearsky", 0))
+
+
+def describe_weather(w: dict | None) -> tuple[str, str]:
+    """(ícono, texto) del estado del cielo; con ráfagas de 60 km/h o más agrega 'muy ventoso'."""
+    if not w:
+        return "🌡️", "Sin datos"
+    code, symbol = w.get("weather_code"), w.get("symbol") or ""
+    is_day = w.get("is_day") != 0 and "night" not in symbol
+    if code is None and symbol:
+        code = next((c for key, c in MET_SYMBOLS if key in symbol), None)
+    icon, text = "🌡️", ""
+    if code is None and (w.get("precip_mm") or 0) > 0:
+        icon, text = "🌧️", "Lluvia"
+    for codes, t, day, night in WMO:
+        if code is not None and int(code) in codes:
+            icon, text = (day if is_day else night), t
+    gust = w.get("gust_kmh")
+    if gust is not None and gust >= 60:
+        icon, text = (icon if text else "💨"), (f"{text}, muy ventoso" if text else "Muy ventoso")
+    return icon, text or "Sin datos del cielo"
 
 
 # ------------------------------------------------------------------ textos
@@ -304,15 +397,23 @@ def summary_text(snap: Snapshot) -> str:
         status, off = snap.official_for(r)
         emoji = OFFICIAL_EMOJI[is_normal(status)] if status else LEVEL_EMOJI[r.level]
         lines.append(f"{emoji} {r.name} · {off}")
-        detail = f"   Ráfagas {r.gust_kmh:.0f} km/h · riesgo {r.level or 's/d'} ({pct(r.p_now)})" \
-            if r.gust_kmh is not None else "   Sin datos de viento"
-        lines.append(detail)
-        pk = r.peak()
-        if pk:
-            lines.append(f"   Próximas 24 h: pico {pct(pk.p)} a las {fmt_local(pk.t, '%H:%M')}")
+        if r.gust_kmh is not None:
+            lines.append(f"   {VERDICT[r.level]} · ráfagas {r.gust_kmh:.0f} km/h · "
+                         f"prob. de suspensión {pct(r.p_now)}")
+        else:
+            lines.append("   Sin datos de viento")
+        windows = closure_windows(r, "medio", 24)
+        if windows:
+            first, last, worst = windows[0]
+            what = "probable suspensión" if worst == "alto" else "puede suspenderse"
+            lines.append(f"   Próximas 24 h: {what} entre {fmt_local(first.t, '%H:%M')} y "
+                         f"{fmt_local(last.t + timedelta(hours=1), '%H:%M')}")
+        elif r.hours:
+            lines.append("   Próximas 24 h: sin riesgo relevante de suspensión")
     if snap.is_stale():
         lines += ["", "⚠️ Datos desactualizados."]
-    lines += ["", "El riesgo es una estimación. Estado oficial:", config.OFFICIAL_URL]
+    lines += ["", "La probabilidad de suspensión es una estimación por viento. Estado oficial:",
+              config.OFFICIAL_URL]
     if config.SITE_URL:
         lines.append(f"Más info: {config.SITE_URL}")
     return "\n".join(lines)

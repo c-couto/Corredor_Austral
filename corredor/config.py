@@ -43,6 +43,10 @@ PLACES: dict[str, tuple[float, float]] = {
 # Puntos donde también se consulta oleaje (modelo marino; puede no cubrir bien el estrecho).
 MARINE_PLACES: tuple[str, ...] = ("punta_delgada", "bahia_azul", "ushuaia")
 
+# Puntos cuyo pronóstico de 48 h se guarda COMPLETO en cada corrida (data/auto/pronosticos/):
+# las dos orillas de Primera Angostura, el cruce que queremos predecir mejor que nadie.
+SNAPSHOT_PLACES: tuple[str, ...] = ("punta_delgada", "bahia_azul")
+
 PLACE_NAMES: dict[str, str] = {
     "rio_grande": "Río Grande",
     "ushuaia": "Ushuaia",

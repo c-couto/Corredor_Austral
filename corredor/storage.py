@@ -26,10 +26,22 @@ class Table:
     name: str
     folder: str  # "auto" o "manual"
     columns: tuple[str, ...]
+    monthly: bool = False  # True: un archivo por mes, data/<carpeta>/<tabla>/AAAA-MM.csv
 
     @property
     def path(self) -> Path:
+        """Archivo de la tabla (para tablas mensuales: la carpeta que contiene los meses)."""
+        if self.monthly:
+            return config.DATA_DIR / self.folder / self.name
         return config.DATA_DIR / self.folder / f"{self.name}.csv"
+
+    def month_path(self, month: str) -> Path:
+        return self.path / f"{month}.csv"
+
+    def files(self) -> list[Path]:
+        if not self.monthly:
+            return [self.path] if self.path.exists() else []
+        return sorted(self.path.glob("*.csv")) if self.path.exists() else []
 
 
 WEATHER = Table("weather_obs", "auto", (
@@ -46,12 +58,19 @@ TABSA_SAILINGS = Table("tabsa_programados", "auto", (
     "ts_utc", "date", "origin", "destination", "boarding", "departure", "status", "icon",
 ))
 TABSA_CHANGES = Table("tabsa_cambios", "auto", ("ts_utc", "subject", "previous", "current"))
+# Pronóstico TAL COMO ESTABA en cada corrida (48 h por lugar): permite comparar después lo que
+# se pronosticó con lo que pasó, sin usar datos del futuro. Un archivo por mes (es la tabla más grande).
+FORECAST_SNAPSHOTS = Table("pronosticos", "auto", (
+    "issued_utc", "place", "valid_utc", "lead_h", "wind_kmh", "gust_kmh", "wind_dir_deg",
+    "wave_height_m", "wave_period_s", "wave_dir_deg", "sea_level_m", "source",
+), monthly=True)
 STATUS = Table("status_obs", "manual", ("ts_utc", "subject", "status", "note", "source"))
 EVENTS = Table("events", "manual", ("ts_utc", "mode", "place", "kind", "note"))
 CROSSINGS = Table("crossings", "manual", ("ts_utc", "route", "delay_minutes", "note"))
 
 TABLES: dict[str, Table] = {t.name: t for t in (
-    WEATHER, MARINE, ERRORS, TABSA_STATE, TABSA_SAILINGS, TABSA_CHANGES, STATUS, EVENTS, CROSSINGS,
+    WEATHER, MARINE, ERRORS, TABSA_STATE, TABSA_SAILINGS, TABSA_CHANGES, FORECAST_SNAPSHOTS,
+    STATUS, EVENTS, CROSSINGS,
 )}
 
 
@@ -70,15 +89,7 @@ def _ends_without_newline(path: Path) -> bool:
         return f.read(1) != b"\n"
 
 
-def append_rows(table: Table, rows: Iterable[Mapping[str, Any]]) -> int:
-    """Agrega filas al final del CSV (crea el archivo con encabezado si no existe).
-
-    Devuelve cuántas filas agregó.
-    """
-    rows = list(rows)
-    if not rows:
-        return 0
-    path = table.path
+def _append_to_file(path: Path, columns: tuple[str, ...], rows: list[Mapping[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     is_new = not path.exists() or path.stat().st_size == 0
     # Si alguien editó el archivo y quedó sin salto de línea al final, lo agregamos
@@ -89,18 +100,40 @@ def append_rows(table: Table, rows: Iterable[Mapping[str, Any]]) -> int:
             f.write("\n")
         writer = csv.writer(f, lineterminator="\n")
         if is_new:
-            writer.writerow(table.columns)
-        writer.writerows([fmt(r.get(c)) for c in table.columns] for r in rows)
+            writer.writerow(columns)
+        writer.writerows([fmt(r.get(c)) for c in columns] for r in rows)
+
+
+def append_rows(table: Table, rows: Iterable[Mapping[str, Any]]) -> int:
+    """Agrega filas al final del CSV (crea el archivo con encabezado si no existe).
+
+    En tablas mensuales, cada fila va al archivo del mes de su primera columna (hora UTC).
+    Devuelve cuántas filas agregó.
+    """
+    rows = list(rows)
+    if not rows:
+        return 0
+    if not table.monthly:
+        _append_to_file(table.path, table.columns, rows)
+        return len(rows)
+    by_month: dict[str, list[Mapping[str, Any]]] = {}
+    for r in rows:
+        by_month.setdefault(str(r[table.columns[0]])[:7], []).append(r)
+    for month, month_rows in by_month.items():
+        _append_to_file(table.month_path(month), table.columns, month_rows)
     return len(rows)
 
 
 def read_rows(table: Table) -> list[dict[str, str]]:
-    """Devuelve las filas del CSV como diccionarios (lista vacía si no existe)."""
-    path = table.path
-    if not path.exists():
-        return []
-    with path.open(newline="", encoding="utf-8") as f:
-        return list(csv.DictReader(f))
+    """Devuelve las filas como diccionarios (lista vacía si no hay datos).
+
+    En tablas mensuales junta todos los meses, en orden.
+    """
+    out: list[dict[str, str]] = []
+    for path in table.files():
+        with path.open(newline="", encoding="utf-8") as f:
+            out.extend(csv.DictReader(f))
+    return out
 
 
 def log_error(where: str, err: BaseException) -> None:

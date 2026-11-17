@@ -117,6 +117,42 @@ class TabsaChangesTest(TempDataDir):
                          ("2026-11-17 09:00 Punta Arenas -> Porvenir", "NORMAL", "SUSPENDIDO"))
 
 
+class ForecastSnapshotTest(TempDataDir):
+    def test_guarda_48_h_de_viento_oleaje_y_marea_de_las_dos_orillas(self):
+        with fake_urlopen([open_meteo_response(N_WEATHER, hours=48), open_meteo_response(N_MARINE, hours=48)]):
+            r = collect_once(tabsa_fn=tabsa_ok)
+        self.assertEqual(r.forecast_rows, 2 * 48)
+        rows = storage.read_rows(storage.FORECAST_SNAPSHOTS)
+        self.assertEqual({row["place"] for row in rows}, {"punta_delgada", "bahia_azul"})
+        first = rows[0]
+        self.assertEqual(first["issued_utc"], storage.read_rows(storage.WEATHER)[0]["ts_utc"])
+        self.assertEqual(first["valid_utc"], "2026-11-17T00:00:00Z")
+        self.assertEqual((first["gust_kmh"], first["wave_height_m"], first["sea_level_m"]), ("30.0", "1.0", "-2.0"))
+        self.assertEqual(rows[1]["sea_level_m"], "-1.5")
+        self.assertEqual(first["source"], "open-meteo+open-meteo-marine")
+        # Un archivo por mes, dentro de data/auto/pronosticos/
+        month = first["issued_utc"][:7]
+        self.assertTrue((self.data_dir / "auto" / "pronosticos" / f"{month}.csv").exists())
+
+    def test_sin_datos_de_mar_guarda_solo_el_viento(self):
+        def met(places):
+            return {p: {"gust_kmh": 40.0, "hourly": [{"t": "2026-11-17T12:00:00Z", "wind": 20.0,
+                                                      "gust": 40.0, "dir": 250.0}]} for p in places}
+        collect_once(weather_fn=met, marine_fn=None, tabsa_fn=tabsa_ok, source_name="met-norway")
+        rows = storage.read_rows(storage.FORECAST_SNAPSHOTS)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual((rows[0]["gust_kmh"], rows[0]["sea_level_m"], rows[0]["source"]), ("40.0", "", "met-norway"))
+
+    def test_tabla_mensual_separa_por_mes_y_lee_todo_en_orden(self):
+        base = {"place": "punta_delgada", "valid_utc": "x"}
+        storage.append_rows(storage.FORECAST_SNAPSHOTS, [
+            {**base, "issued_utc": "2026-11-30T23:37:00Z"}, {**base, "issued_utc": "2026-12-01T00:07:00Z"}])
+        files = storage.FORECAST_SNAPSHOTS.files()
+        self.assertEqual([f.name for f in files], ["2026-11.csv", "2026-12.csv"])
+        self.assertEqual([r["issued_utc"] for r in storage.read_rows(storage.FORECAST_SNAPSHOTS)],
+                         ["2026-11-30T23:37:00Z", "2026-12-01T00:07:00Z"])
+
+
 class ForecastCacheTest(TempDataDir):
     def test_pronostico_viejo_no_se_usa_sin_refrescar(self):
         forecast.save("2026-01-01T00:00:00Z", "open-meteo", {"x": {"hourly": []}})

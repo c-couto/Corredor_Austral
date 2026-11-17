@@ -60,7 +60,7 @@ class SnapshotTest(TempDataDir):
         snap = conditions.snapshot(now=NOW, fetch_forecast=False)
         self.assertIsNone(snap.latest)
         self.assertTrue(snap.is_stale())
-        self.assertIn("El riesgo es una estimación", conditions.summary_text(snap))
+        self.assertIn("La probabilidad de suspensión es una estimación", conditions.summary_text(snap))
 
     def test_dato_oficial_viejo_no_se_muestra_como_actual(self):
         add_run(NOW - timedelta(hours=5), {"punta_delgada": 30}, "SUSPENDIDO")
@@ -92,6 +92,41 @@ class AlertsTest(TempDataDir):
         add_run(NOW - timedelta(minutes=35), {"punta_delgada": 30})
         add_run(NOW - timedelta(minutes=5), {"punta_delgada": 32})
         self.assertEqual(alerts.risk_changes(now=NOW), [])
+
+
+class EasyReadingTest(TempDataDir):
+    def test_ventanas_de_posible_suspension(self):
+        add_run(NOW - timedelta(minutes=5), {"punta_delgada": 30})
+        add_forecast(NOW, [30] * 5 + [60, 75, 80, 55] + [30] * 39)
+        st = conditions.snapshot(now=NOW, fetch_forecast=False).route("primera_angostura")
+        wins = conditions.closure_windows(st, "medio", 48)
+        self.assertEqual(len(wins), 1)
+        first, last, worst = wins[0]
+        self.assertEqual((first.t, last.t, worst), (NOW + timedelta(hours=5), NOW + timedelta(hours=8), "alto"))
+        self.assertIn("probable suspensión entre", conditions.summary_text(conditions.snapshot(now=NOW, fetch_forecast=False)))
+
+    def test_veredicto_prioriza_el_estado_oficial(self):
+        add_run(NOW - timedelta(minutes=5), {"punta_delgada": 20}, "SUSPENDIDO")
+        snap = conditions.snapshot(now=NOW, fetch_forecast=False)
+        self.assertEqual(conditions.verdict(snap, snap.route("primera_angostura")),
+                         ("alto", "Suspendido según TABSA (suspendido)"))
+
+    def test_veredicto_por_viento(self):
+        add_run(NOW - timedelta(minutes=5), {"punta_delgada": 30}, "NORMAL")
+        snap = conditions.snapshot(now=NOW, fetch_forecast=False)
+        self.assertEqual(conditions.verdict(snap, snap.route("primera_angostura")), ("bajo", "Se espera cruce normal"))
+
+    def test_umbrales_de_rafaga_de_la_regla_base(self):
+        m = conditions.model.RouteModel()
+        self.assertAlmostEqual(conditions.gust_threshold(m, 0.2), 50, delta=0.1)
+        self.assertAlmostEqual(conditions.gust_threshold(m, 0.5), 70, delta=0.1)
+
+    def test_describe_el_clima(self):
+        self.assertEqual(conditions.describe_weather({"weather_code": 61, "is_day": 1}), ("🌧️", "Lluvia"))
+        self.assertEqual(conditions.describe_weather({"weather_code": 0, "is_day": 0}), ("🌙", "Despejado"))
+        self.assertEqual(conditions.describe_weather({"symbol": "lightsnow"}), ("🌨️", "Nieve"))
+        self.assertEqual(conditions.describe_weather({"weather_code": 3, "gust_kmh": 80})[1], "Nublado, muy ventoso")
+        self.assertEqual(conditions.describe_weather(None)[1], "Sin datos")
 
 
 class TelegramTest(TempDataDir):
@@ -126,8 +161,9 @@ class WebTest(TempDataDir):
         add_forecast(NOW, [40 + i for i in range(48)])
         html = self.page()
         for text in ("Primera Angostura", "TABSA: NORMAL", "¿A qué hora salgo?", 'id="plan-data"',
-                     "Cómo calculamos el riesgo", "regla base", "Plan Flota", "https://wa.me/?text=",
-                     'class="timeline"', "Construyendo el historial"):
+                     "Cómo calculamos la probabilidad", "regla base", "Plan Flota", "https://wa.me/?text=",
+                     'class="chart"', "Construyendo el historial", "Bandera de Tierra del Fuego",
+                     'id="clk"', "probabilidad de que TABSA suspenda", "Probable suspensión"):
             self.assertIn(text, html)
         self.assertNotIn("Los datos tienen más de", html)
 

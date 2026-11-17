@@ -38,7 +38,7 @@ def fetch_many(url: str, places: Places, params: Mapping[str, Any]) -> dict[str,
 def fetch_weather(places: Places) -> dict[str, dict]:
     """Clima actual + pronóstico horario de 48 h, por lugar."""
     raw = fetch_many(FORECAST_URL, places, {
-        "current": "temperature_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m,precipitation",
+        "current": "temperature_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m,precipitation,weather_code,is_day",
         "hourly": "wind_speed_10m,wind_gusts_10m,wind_direction_10m",
         "forecast_hours": FORECAST_HOURS,
         "wind_speed_unit": "kmh",
@@ -66,6 +66,8 @@ def fetch_weather(places: Places) -> dict[str, dict]:
             "wind_dir_deg": num(cur.get("wind_direction_10m")),
             "precip_mm": num(cur.get("precipitation")),
             "forecast_gust_max_24h_kmh": max(gusts_24h) if gusts_24h else None,
+            "weather_code": num(cur.get("weather_code")),  # código WMO: despejado, lluvia, nieve...
+            "is_day": num(cur.get("is_day")),
             "hourly": hourly,
         }
     return out
@@ -76,18 +78,33 @@ def _at(hourly: dict, key: str, i: int):
     return values[i] if i < len(values) else None
 
 
-def fetch_marine(places: Places) -> dict[str, dict[str, float | None]]:
-    """Oleaje actual por lugar."""
+def fetch_marine(places: Places) -> dict[str, dict]:
+    """Oleaje actual + pronóstico horario de 48 h de oleaje y nivel del mar (marea), por lugar.
+
+    sea_level_height_msl: nivel del mar sobre el medio (marea + efecto del viento), en metros.
+    La grilla marina es gruesa: sirve para la FASE de la marea (sube/baja), no su altura exacta.
+    """
     raw = fetch_many(MARINE_URL, places, {
         "current": "wave_height,wave_period,wave_direction",
+        "hourly": "wave_height,wave_period,wave_direction,sea_level_height_msl",
+        "forecast_hours": FORECAST_HOURS,
         "timezone": "UTC",
     })
     out = {}
     for place, data in raw.items():
         cur = data.get("current") or {}
+        h = data.get("hourly") or {}
         out[place] = {
             "wave_height_m": num(cur.get("wave_height")),
             "wave_period_s": num(cur.get("wave_period")),
             "wave_dir_deg": num(cur.get("wave_direction")),
+            "hourly": [
+                {"t": f"{t}:00Z" if len(t) == 16 else t,
+                 "wave_height": num(_at(h, "wave_height", i)),
+                 "wave_period": num(_at(h, "wave_period", i)),
+                 "wave_dir": num(_at(h, "wave_direction", i)),
+                 "sea_level": num(_at(h, "sea_level_height_msl", i))}
+                for i, t in enumerate(h.get("time") or [])
+            ],
         }
     return out

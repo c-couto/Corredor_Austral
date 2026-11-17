@@ -31,13 +31,17 @@ Sabemos algo de programación: entendemos el código si lo vemos, pero no escrib
 - **TABSA**: la página se arma con JavaScript. Se renderiza con el Chrome/Edge que ya está en
   la máquina (`corredor/browser.py`, `--headless --dump-dom`) y se leen las tablas visibles
   (`corredor/sources/tabsa.py`). **No usar las APIs internas de TABSA** (`api-gw.tabsa.cl`, etc.):
-  piden autorización y su código está ofuscado a propósito. Si la página cambia, el lector
+  piden autorización y su código está ofuscado a propósito.
+  Verificado el 17/11/2026 observando el tráfico de la página: el estado sale de
+  `api-gw.tabsa.cl/api/cruce/cruce/suspension` y `/cruce/20/fecha/...`, ambos con Authorization. Si la página cambia, el lector
   lanza `TabsaFormatError` y queda en `collector_errors.csv` (no guarda datos dudosos).
 - **Datos**: CSV, uno por tabla. El diccionario completo está en la sección "Datos" del
   `README.md`. Siempre se **agregan filas al final**.
   - `data/auto/`: lo escribe solo el bot: `weather_obs`, `marine_obs`, `tabsa_estado`,
     `tabsa_programados`, `tabsa_cambios`, `collector_errors`.
   - `data/manual/`: lo escriben solo los comandos `status` / `event` / `crossing`.
+  - `data/auto/pronosticos/AAAA-MM.csv`: el pronóstico de 48 h (viento, oleaje, marea) de
+    Punta Delgada y Bahía Azul tal como estaba en cada corrida. Un archivo por mes (~12 KB por corrida).
   - `data/model/modelo.json`: el modelo entrenado (se reescribe una vez por día; no es historial).
   - `data/legacy/auto.db`: formato viejo (SQLite), solo respaldo.
   - `.cache/pronostico.json`: pronóstico horario del momento, **fuera del repo**.

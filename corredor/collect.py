@@ -18,6 +18,7 @@ class CollectResult(NamedTuple):
     tabsa_crossings: int  # cruces con estado oficial
     tabsa_sailings: int   # salidas programadas leídas
     tabsa_changes: int    # cambios de estado detectados
+    forecast_rows: int = 0  # filas de pronóstico guardadas (data/auto/pronosticos/)
 
 
 def sailing_subject(row: dict) -> str:
@@ -95,6 +96,15 @@ def collect_once(
             {"ts_utc": ts, "place": place, **m, "source": "open-meteo-marine"} for place, m in marine.items()
         ))
 
+    # Pronóstico de 48 h tal como está AHORA (para evaluar y entrenar sin usar datos del futuro).
+    snapshot = 0
+    if weather or marine:
+        try:
+            snapshot = storage.append_rows(storage.FORECAST_SNAPSHOTS,
+                                           forecast.snapshot_rows(ts, source_name, weather, marine))
+        except Exception as e:
+            storage.log_error("pronosticos", e)
+
     crossings = sailings = changes = 0
     try:
         page = tabsa_fn()
@@ -103,4 +113,4 @@ def collect_once(
     except Exception as e:
         storage.log_error("tabsa", e)
 
-    return CollectResult(len(weather), len(marine), crossings, sailings, changes)
+    return CollectResult(len(weather), len(marine), crossings, sailings, changes, snapshot)
