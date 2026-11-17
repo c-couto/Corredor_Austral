@@ -19,48 +19,53 @@ Sabemos algo de programación: entendemos el código si lo vemos, pero no escrib
   servicios pagos o que pidan tarjeta), preguntá primero.
 - Nunca pongas tokens ni claves en el código: usá GitHub Secrets / variables de entorno.
 
-## Cómo funciona hoy
-- `.github/workflows/collect.yml`: workflow `collect` que lee la página de TABSA y guarda los datos.
+## Cómo funciona hoy (v0.4, 17/11/2026)
+- `.github/workflows/collect.yml`: workflow `collect`. En cada corrida (un solo trabajo, ~1 min):
+  clima de 8 puntos + pronóstico horario, estado de TABSA, reentrenamiento diario del modelo,
+  commit de `data/auto/` y `data/model/`, y aviso por Telegram si algo cambió.
 - Se dispara cada 30 min desde cron-job.org (vía `workflow_dispatch`); el `schedule` de
   GitHub (`7,37 * * * *`) queda de respaldo porque GitHub lo saltea seguido.
+  (Al 17/11 había muchas menos corridas que las esperadas: revisar cron-job.org.)
 - El token que usa cron-job.org vence el 17/12/2026.
-- **Dónde y en qué formato se guardan los datos** (revisado el 17/11/2026):
-  - **Ojo:** el código actual **no lee TABSA**. `python -m corredor run` solo consulta
-    clima y oleaje en Open-Meteo. Todavía no se guarda ningún estado de cruce.
-  - **CSV, uno por tabla.** El diccionario completo (columnas y unidades) está en
-    la sección "Datos" del `README.md`. Siempre se **agregan filas al final**: nunca se borran ni se reescriben.
-    - `data/auto/`: lo escribe solo el workflow (`weather_obs.csv`, `marine_obs.csv`,
-      `collector_errors.csv`). Después de cada corrida el bot (`corredor-bot`) hace un
-      commit "datos <fecha UTC>".
-    - `data/manual/`: lo escriben solo los comandos `status` / `event` / `crossing`.
-    - `data/legacy/auto.db`: el formato viejo (SQLite), solo como respaldo. Sus filas se
-      pasaron a `data/auto/` con `scripts/migrar_a_csv.py`, que se puede volver a correr
-      sin duplicar. Se sacó la columna `id` de SQLite.
-  - Clima y oleaje se piden en **una sola consulta** a Open-Meteo para todos los lugares,
-    con un timeout de 15 s y hasta 3 reintentos (esperas de 5, 10 y 20 s). Si igual falla,
-    queda anotado en `collector_errors.csv` y la corrida sigue.
-  - Ejemplo de `data/auto/weather_obs.csv`:
-    ```
-    ts_utc,place,temp_c,wind_kmh,gust_kmh,wind_dir_deg,precip_mm,forecast_gust_max_24h_kmh,source
-    2026-11-17T20:29:16Z,bahia_azul,17.0,34.7,56.5,34.0,0.0,56.5,open-meteo
-    ```
-  - Ver los datos: `git pull` y después `python -m corredor report`, o
-    `python -m corredor export datos.csv`.
+- Costo: ~1.440 de los 2.000 min/mes gratis. No agregar pasos que sumen minutos sin preguntar.
+- **TABSA**: la página se arma con JavaScript. Se renderiza con el Chrome/Edge que ya está en
+  la máquina (`corredor/browser.py`, `--headless --dump-dom`) y se leen las tablas visibles
+  (`corredor/sources/tabsa.py`). **No usar las APIs internas de TABSA** (`api-gw.tabsa.cl`, etc.):
+  piden autorización y su código está ofuscado a propósito. Si la página cambia, el lector
+  lanza `TabsaFormatError` y queda en `collector_errors.csv` (no guarda datos dudosos).
+- **Datos**: CSV, uno por tabla. El diccionario completo está en la sección "Datos" del
+  `README.md`. Siempre se **agregan filas al final**.
+  - `data/auto/`: lo escribe solo el bot: `weather_obs`, `marine_obs`, `tabsa_estado`,
+    `tabsa_programados`, `tabsa_cambios`, `collector_errors`.
+  - `data/manual/`: lo escriben solo los comandos `status` / `event` / `crossing`.
+  - `data/model/modelo.json`: el modelo entrenado (se reescribe una vez por día; no es historial).
+  - `data/legacy/auto.db`: formato viejo (SQLite), solo respaldo.
+  - `.cache/pronostico.json`: pronóstico horario del momento, **fuera del repo**.
+- **Clima**: Open-Meteo (solo uso NO comercial) por defecto. Con la variable
+  `CORREDOR_MET_CONTACT` pasa a MET Norway (uso comercial permitido) y deja de usar Open-Meteo.
+  **Antes de cobrar por el servicio hay que activar MET Norway.**
+- **Modelo** (`corredor/model.py`): regresión logística en Python puro sobre ráfaga, viento y
+  dirección, con el estado de TABSA como etiqueta. Usa una regla base hasta tener
+  `MODEL_MIN_SAMPLES` muestras y `MODEL_MIN_POSITIVES` suspensiones, y el modelo aprendido
+  solo la reemplaza si tiene mejor puntaje de Brier en el 20 % más reciente de los datos.
+- Ver los datos: `git pull` y después `python -m corredor web` / `resumen` / `report`.
 
 ## Estructura del código
 - `corredor/` (paquete Python, solo biblioteca estándar, Python ≥ 3.10). Se corre con
   `python -m corredor <comando>` desde la raíz.
-  - `config.py`: lugares, carpetas y parámetros de red.
-  - `storage.py`: tablas (`Table`), y las funciones `append_rows` / `read_rows`.
-  - `net.py`: `get_json` con timeout y reintentos.
-  - `sources/`: un módulo por fuente externa (`open_meteo.py`; el lector de TABSA va acá).
-  - `collect.py`: una recolección. `cli.py`: los comandos.
-  - BETA: `conditions.py` calcula el riesgo por viento de cada cruce y es la única fuente
-    para todos los canales. `web.py` genera `_site/index.html`, que no se guarda en el repo.
-    `alerts.py` detecta cambios de nivel y avisa por `channels/telegram.py`, que toma el
-    token de los Secrets. WhatsApp por ahora es solo un botón para compartir en la web.
-- `tests/`: pruebas con `unittest` (`python -m unittest -v`). Corren en GitHub con el
-  workflow `tests` cuando cambia el código. Nunca escriben en `data/`.
+  - `config.py`: lugares, cruces (`ROUTES`), umbrales, planificador, links. Lo privado llega por
+    variables de entorno.
+  - `collect.py`: una recolección y el registro de cambios de estado de TABSA.
+  - `sources/`: `tabsa.py`, `open_meteo.py`, `met_norway.py` (mismo formato de salida).
+  - `browser.py`, `net.py` (reintentos), `storage.py` (CSV), `timeutil.py` (UTC ↔ local),
+    `forecast.py` (caché del pronóstico).
+  - `model.py`: modelo de riesgo. `conditions.py`: situación de cada cruce, **única fuente**
+    para la web, Telegram y WhatsApp. `web.py`: la web (`_site/index.html`, fuera del repo).
+    `alerts.py` + `channels/telegram.py`: avisos.
+- `tests/`: `unittest` (`python -m unittest -v`), 54 pruebas. Usan carpetas temporales, no
+  pueden salir a internet ni abrir el navegador. `tests/fixtures/` tiene un recorte real
+  de la página de TABSA.
+- `docs/MODELO_NEGOCIO.md`: cómo ganar plata (Plan Flota, patrocinios), validación y riesgos.
 - **No renombrar `.github/workflows/collect.yml`**: cron-job.org lo dispara por ese nombre.
 
 ## Reglas sobre los datos
@@ -85,9 +90,13 @@ Sabemos algo de programación: entendemos el código si lo vemos, pero no escrib
   historial pasar a un modelo.
 
 ## Hoja de ruta
-- [ ] Fase 0 – Revisar el repo, documentar el formato de datos y completar este archivo.
-- [ ] Fase 1 – Web: estado actual + historial básico, publicada en GitHub Pages.
-- [ ] Fase 2 – Avisos por Telegram al cambiar el estado.
-- [ ] Fase 3 – Estadísticas (duración de suspensiones, peores meses/horas).
-- [ ] Fase 4 – Pronóstico con viento de Open-Meteo.
-- [ ] Fase 5 – WhatsApp.
+- [x] Fase 0 – Revisar el repo, documentar el formato de datos y completar este archivo.
+- [ ] Fase 1 – Web: estado actual + historial básico (hecha en local; falta publicarla:
+      Cloudflare Pages gratis, o GitHub Pages si el repo pasa a público).
+- [x] Fase 2 – Avisos por Telegram al cambiar el estado (falta cargar los Secrets).
+- [ ] Fase 3 – Estadísticas: duración de suspensiones y mapa día/hora hechos; peores meses
+      cuando haya historial.
+- [x] Fase 4 – Pronóstico: probabilidad por hora con modelo que aprende de los datos
+      (con regla base mientras no haya suficientes suspensiones).
+- [ ] Fase 5 – WhatsApp (hoy: botón para compartir; la API de Meta es paga).
+- [ ] Negocio – Validar el Plan Flota con 5 empresas (ver `docs/MODELO_NEGOCIO.md`).

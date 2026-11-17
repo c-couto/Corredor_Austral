@@ -1,6 +1,7 @@
-"""Open-Meteo: clima y oleaje (gratis, sin API key, solo uso NO comercial).
+"""Open-Meteo: clima y oleaje (gratis, sin API key, SOLO uso NO comercial).
 
 Pide todos los lugares en UNA sola consulta (coordenadas separadas por coma).
+Devuelve el mismo formato que met_norway.py (ver sources/__init__.py).
 """
 
 from __future__ import annotations
@@ -8,21 +9,12 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from .. import net
+from . import Places, num
 
+NAME = "open-meteo"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 MARINE_URL = "https://marine-api.open-meteo.com/v1/marine"
-
-Places = Mapping[str, "tuple[float, float]"]
-
-
-def _num(value: Any) -> float | None:
-    """Devuelve float o None (la API a veces devuelve null)."""
-    if value is None:
-        return None
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
+FORECAST_HOURS = 48
 
 
 def fetch_many(url: str, places: Places, params: Mapping[str, Any]) -> dict[str, dict]:
@@ -43,28 +35,45 @@ def fetch_many(url: str, places: Places, params: Mapping[str, Any]) -> dict[str,
     return dict(zip(names, data))
 
 
-def fetch_weather(places: Places) -> dict[str, dict[str, float | None]]:
-    """Clima actual + ráfaga máxima pronosticada en las próximas 24 h, por lugar."""
+def fetch_weather(places: Places) -> dict[str, dict]:
+    """Clima actual + pronóstico horario de 48 h, por lugar."""
     raw = fetch_many(FORECAST_URL, places, {
         "current": "temperature_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m,precipitation",
-        "hourly": "wind_gusts_10m",
-        "forecast_hours": 24,
+        "hourly": "wind_speed_10m,wind_gusts_10m,wind_direction_10m",
+        "forecast_hours": FORECAST_HOURS,
         "wind_speed_unit": "kmh",
         "timezone": "UTC",
     })
     out = {}
     for place, data in raw.items():
         cur = data.get("current") or {}
-        gusts = [g for g in map(_num, (data.get("hourly") or {}).get("wind_gusts_10m", [])) if g is not None]
+        h = data.get("hourly") or {}
+        times = h.get("time") or []
+        hourly = [
+            {"t": f"{t}:00Z" if len(t) == 16 else t,
+             "wind": num(_at(h, "wind_speed_10m", i)),
+             "gust": num(_at(h, "wind_gusts_10m", i)),
+             "dir": num(_at(h, "wind_direction_10m", i))}
+            for i, t in enumerate(times)
+        ]
+        gusts_24h = [x["gust"] for x in hourly[:24] if x["gust"] is not None]
+        if not times:  # respuesta sin horas: compatibilidad con la versión anterior
+            gusts_24h = [g for g in map(num, h.get("wind_gusts_10m", [])) if g is not None]
         out[place] = {
-            "temp_c": _num(cur.get("temperature_2m")),
-            "wind_kmh": _num(cur.get("wind_speed_10m")),
-            "gust_kmh": _num(cur.get("wind_gusts_10m")),
-            "wind_dir_deg": _num(cur.get("wind_direction_10m")),
-            "precip_mm": _num(cur.get("precipitation")),
-            "forecast_gust_max_24h_kmh": max(gusts) if gusts else None,
+            "temp_c": num(cur.get("temperature_2m")),
+            "wind_kmh": num(cur.get("wind_speed_10m")),
+            "gust_kmh": num(cur.get("wind_gusts_10m")),
+            "wind_dir_deg": num(cur.get("wind_direction_10m")),
+            "precip_mm": num(cur.get("precipitation")),
+            "forecast_gust_max_24h_kmh": max(gusts_24h) if gusts_24h else None,
+            "hourly": hourly,
         }
     return out
+
+
+def _at(hourly: dict, key: str, i: int):
+    values = hourly.get(key) or []
+    return values[i] if i < len(values) else None
 
 
 def fetch_marine(places: Places) -> dict[str, dict[str, float | None]]:
@@ -77,8 +86,8 @@ def fetch_marine(places: Places) -> dict[str, dict[str, float | None]]:
     for place, data in raw.items():
         cur = data.get("current") or {}
         out[place] = {
-            "wave_height_m": _num(cur.get("wave_height")),
-            "wave_period_s": _num(cur.get("wave_period")),
-            "wave_dir_deg": _num(cur.get("wave_direction")),
+            "wave_height_m": num(cur.get("wave_height")),
+            "wave_period_s": num(cur.get("wave_period")),
+            "wave_dir_deg": num(cur.get("wave_direction")),
         }
     return out

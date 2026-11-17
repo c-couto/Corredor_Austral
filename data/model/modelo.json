@@ -1,0 +1,48 @@
+{
+ "version": 1,
+ "trained_utc": "2026-11-17T21:40:37Z",
+ "features": [
+  "rafaga_kmh",
+  "viento_kmh",
+  "dir_seno",
+  "dir_coseno"
+ ],
+ "routes": {
+  "primera_angostura": {
+   "kind": "prior",
+   "weights": [],
+   "bias": 0.0,
+   "means": [],
+   "stds": [],
+   "n_samples": 1,
+   "n_positive": 0,
+   "trained_utc": "2026-11-17T21:40:37Z",
+   "reason": "Regla base: hacen falta al menos 60 muestras y 8 suspensiones registradas (hay 1 y 0).",
+   "metrics": {}
+  },
+  "punta_arenas_porvenir": {
+   "kind": "prior",
+   "weights": [],
+   "bias": 0.0,
+   "means": [],
+   "stds": [],
+   "n_samples": 1,
+   "n_positive": 0,
+   "trained_utc": "2026-11-17T21:40:37Z",
+   "reason": "Regla base: hacen falta al menos 60 muestras y 8 suspensiones registradas (hay 1 y 0).",
+   "metrics": {}
+  },
+  "rio_verde": {
+   "kind": "prior",
+   "weights": [],
+   "bias": 0.0,
+   "means": [],
+   "stds": [],
+   "n_samples": 1,
+   "n_positive": 0,
+   "trained_utc": "2026-11-17T21:40:37Z",
+   "reason": "Regla base: hacen falta al menos 60 muestras y 8 suspensiones registradas (hay 1 y 0).",
+   "metrics": {}
+  }
+ }
+}

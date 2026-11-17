@@ -8,10 +8,12 @@
   python -m corredor report                   # últimos datos
   python -m corredor export datos.csv         # junta todo en un solo CSV
 
-BETA (web y avisos):
+TABSA, modelo, web y avisos:
+  python -m corredor tabsa                    # lee el estado de TABSA y lo muestra (no guarda)
+  python -m corredor train                    # entrena el modelo de riesgo con los datos
   python -m corredor web                      # genera la web en _site/index.html
   python -m corredor resumen                  # el mensaje que va a Telegram / WhatsApp
-  python -m corredor notify                   # avisa por Telegram si cambió el riesgo
+  python -m corredor notify                   # avisa por Telegram si cambió algo
   python -m corredor notify --force           # manda el resumen igual (para probar)
 """
 
@@ -27,9 +29,30 @@ from .collect import collect_once
 
 
 def cmd_run(args: argparse.Namespace) -> None:
-    ok_w, ok_m = collect_once()
-    print(f"{storage.now_utc()} clima: {ok_w}/{len(config.PLACES)} puntos"
-          f" · oleaje: {ok_m}/{len(config.MARINE_PLACES)} puntos")
+    r = collect_once()
+    marine = f" · oleaje: {r.marine}/{len(config.MARINE_PLACES)} puntos" if config.WEATHER_SOURCE == "open_meteo" else ""
+    print(f"{storage.now_utc()} clima ({config.WEATHER_SOURCE}): {r.weather}/{len(config.PLACES)} puntos{marine}"
+          f" · TABSA: {r.tabsa_crossings} cruces, {r.tabsa_sailings} salidas, {r.tabsa_changes} cambios")
+
+
+def cmd_tabsa(args: argparse.Namespace) -> None:
+    from .sources import tabsa
+    page = tabsa.fetch()
+    for c in page.crossings:
+        print(f"{c.name:20} {c.status}")
+    for s in page.sailings:
+        print(f"{s.date} {s.departure}  {s.origin} -> {s.destination:15} {s.status}")
+
+
+def cmd_train(args: argparse.Namespace) -> None:
+    from . import model
+    if args.if_stale and not model.is_stale():
+        print("El modelo ya se entrenó hoy: no se reentrena.")
+        return
+    for key, m in model.train_all().items():
+        print(f"{config.ROUTES[key]['name']:25} {m.kind:8} {m.reason}")
+        if m.metrics:
+            print(f"{'':25} {m.metrics}")
 
 
 def cmd_loop(args: argparse.Namespace) -> None:
@@ -147,6 +170,12 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("export", help="juntar todo en un solo CSV")
     s.add_argument("file")
     s.set_defaults(fn=cmd_export)
+
+    sub.add_parser("tabsa", help="leer el estado de TABSA y mostrarlo (no guarda)").set_defaults(fn=cmd_tabsa)
+
+    s = sub.add_parser("train", help="entrenar el modelo de riesgo con los datos")
+    s.add_argument("--if-stale", action="store_true", help="solo si no se entrenó hoy")
+    s.set_defaults(fn=cmd_train)
 
     s = sub.add_parser("web", help="BETA: generar la web estática")
     s.add_argument("--out", default=str(config.ROOT / "_site"), help="carpeta de salida (por defecto _site/)")

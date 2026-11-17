@@ -40,11 +40,19 @@ MARINE = Table("marine_obs", "auto", (
     "ts_utc", "place", "wave_height_m", "wave_period_s", "wave_dir_deg", "source",
 ))
 ERRORS = Table("collector_errors", "auto", ("ts_utc", "where_", "error"))
+# TABSA: estado de cada cruce en cada corrida, cada salida programada, y los cambios de estado.
+TABSA_STATE = Table("tabsa_estado", "auto", ("ts_utc", "crossing", "status", "icon"))
+TABSA_SAILINGS = Table("tabsa_programados", "auto", (
+    "ts_utc", "date", "origin", "destination", "boarding", "departure", "status", "icon",
+))
+TABSA_CHANGES = Table("tabsa_cambios", "auto", ("ts_utc", "subject", "previous", "current"))
 STATUS = Table("status_obs", "manual", ("ts_utc", "subject", "status", "note", "source"))
 EVENTS = Table("events", "manual", ("ts_utc", "mode", "place", "kind", "note"))
 CROSSINGS = Table("crossings", "manual", ("ts_utc", "route", "delay_minutes", "note"))
 
-TABLES: dict[str, Table] = {t.name: t for t in (WEATHER, MARINE, ERRORS, STATUS, EVENTS, CROSSINGS)}
+TABLES: dict[str, Table] = {t.name: t for t in (
+    WEATHER, MARINE, ERRORS, TABSA_STATE, TABSA_SAILINGS, TABSA_CHANGES, STATUS, EVENTS, CROSSINGS,
+)}
 
 
 def now_utc() -> str:

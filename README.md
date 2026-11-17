@@ -1,151 +1,177 @@
-# Corredor Austral · recolector de datos v0.3
+# Corredor Austral · el semáforo del Estrecho · v0.4
 
-Registra clima, viento y oleaje en puntos clave del corredor hacia Tierra del Fuego, y te permite cargar a mano estados y demoras reales. Con el tiempo, esos datos son la base de un modelo para anticipar demoras.
+Estado oficial de los cruces del Estrecho de Magallanes (**Primera Angostura**, **Punta Arenas ↔ Porvenir** y **Río Verde**) + la **probabilidad de que se suspendan** en las próximas horas, aprendida de nuestro propio historial, y **la mejor hora para salir**.
 
-No necesita instalar nada: solo Python 3.10 o superior.
+TABSA publica el estado del momento y lo borra con el siguiente. Corredor Austral lo guarda cada 30 minutos junto con el viento, aprende con cuánto viento se suspende cada cruce y lo muestra en una web pensada para el celular, con avisos por Telegram y para compartir por WhatsApp.
+
+No necesita instalar nada: solo Python 3.10 o superior y Chrome o Edge (para leer la página de TABSA). Costo: cero (ver [docs/MODELO_NEGOCIO.md](docs/MODELO_NEGOCIO.md)).
+
+## Uso rápido
+
+En la terminal de VS Code, desde la carpeta del proyecto:
+
+```
+git pull                           # trae los últimos datos del bot
+python -m corredor web             # genera la web → abrí _site/index.html con doble clic
+python -m corredor resumen         # el mensaje para Telegram / WhatsApp
+```
+
+Todos los comandos:
+
+| Comando | Qué hace |
+|---|---|
+| `run` | Una recolección: clima + pronóstico horario + estado de TABSA |
+| `tabsa` | Lee TABSA y lo muestra, sin guardar (para probar) |
+| `train` | Entrena el modelo de riesgo con los datos guardados (`--if-stale`: solo si no se entrenó hoy) |
+| `web` | Genera la web en `_site/index.html` |
+| `resumen` | Muestra el resumen que va a Telegram y WhatsApp |
+| `notify` | Avisa por Telegram si algo cambió (`--force`: manda el resumen igual) |
+| `report` / `export datos.csv` | Últimos datos / todo en un CSV |
+| `status` / `event` / `crossing` | Carga manual (ver abajo) |
+
+## Cómo funciona
+
+1. **Recolección** (workflow `collect`, cada 30 min, gratis): clima de 8 puntos con pronóstico hora por hora, y el estado oficial de TABSA. La página de TABSA se arma con JavaScript, así que se abre con el Chrome que ya trae el servidor (sin ventana) y se leen las tablas visibles, igual que una persona. No se usan las APIs internas de TABSA.
+2. **Cambios de estado:** cada vez que un cruce o una salida cambia (NORMAL → SUSPENDIDO y vuelta) queda registrado con su hora. Así se miden las duraciones.
+3. **Modelo** (una vez por día, segundos): cada lectura de TABSA es un ejemplo "este viento → este estado". Una regresión logística aprende la **probabilidad de que el cruce no esté normal** según ráfaga, viento y dirección. Mientras no haya suficientes suspensiones registradas usa una **regla base** (50 km/h de ráfaga → 20 %, 70 km/h → 50 %), y el modelo aprendido solo la reemplaza si **predice mejor en datos que no vio**.
+4. **Canales:** la web, Telegram y WhatsApp muestran lo mismo (sale de `corredor/conditions.py`).
+
+| Riesgo | Probabilidad de que el cruce no esté normal |
+|---|---|
+| 🟢 bajo | menos de 20 % |
+| 🟡 medio | desde 20 % |
+| 🔴 alto | desde 50 % |
+
+El riesgo es una **estimación**: el estado oficial siempre se muestra al lado y se invita a confirmar con TABSA.
+
+### La web
+- **Semáforo por cruce:** estado oficial, medidor de probabilidad, viento con su dirección y una franja de 48 h coloreada hora por hora.
+- **¿A qué hora salgo?:** elegís el origen (Río Gallegos, Punta Arenas, Río Grande, Ushuaia) y te muestra el riesgo a la hora en que llegarías a Primera Angostura y la mejor salida. Las horas de manejo están en `PLANNER_ORIGINS` (`corredor/config.py`).
+- **Próximas salidas Punta Arenas ↔ Porvenir:** estado TABSA + riesgo a la hora de zarpe.
+- **Historial:** suspensiones con su duración y, con una semana de datos, un mapa de días y horas críticas.
+- **Cómo calculamos el riesgo:** si cada cruce usa el modelo aprendido o la regla base, y por qué.
+- **Plan Flota y "Dónde esperar":** espacios comerciales (ver el modelo de negocio).
+
+### Telegram y WhatsApp
+- **Telegram:** el workflow avisa cuando TABSA cambia un estado (lo más valioso) y cuando cambia el nivel de riesgo. Se activa con los Secrets `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` (crear el bot con @BotFather y agregarlo como administrador del canal). Sin ellos no envía nada.
+- **WhatsApp:** botón "Compartir por WhatsApp" en la web, sin costo. Los avisos automáticos por WhatsApp necesitan la API de Meta (paga): fase 5.
+
+### Configuración (GitHub → Settings → Secrets and variables → Actions)
+| Nombre | Tipo | Para qué |
+|---|---|---|
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Secret | Avisos por Telegram |
+| `CORREDOR_MET_CONTACT` | Variable | Un mail o la web del proyecto. Pasa el clima a **MET Norway** (permite uso comercial). **Obligatorio antes de cobrar** |
+| `CORREDOR_SITE_URL`, `CORREDOR_TELEGRAM_URL` | Variable | Links en los mensajes y en la web, cuando estén publicados |
+| `CORREDOR_CONTACT_URL` | Variable | Contacto comercial: activa los botones del Plan Flota y "Dónde esperar" |
 
 ## Estructura del proyecto
 
 ```
-corredor/                  el código
-├── cli.py                 comandos (run, report, status, ...)
-├── config.py              lugares, carpetas y tiempos de espera: lo que se ajusta a mano
-├── collect.py             una recolección completa
-├── storage.py             lectura y escritura de los CSV
-├── net.py                 consultas HTTP con reintentos
-└── sources/
-    └── open_meteo.py      fuente de clima y oleaje
-data/                      los datos (ver la sección "Datos" más abajo)
+corredor/
+├── cli.py                 comandos
+├── config.py              lugares, cruces, umbrales, planificador: lo que se ajusta a mano
+├── collect.py             una recolección (clima + TABSA) y registro de cambios de estado
+├── browser.py             abre páginas con Chrome/Edge sin ventana
+├── sources/
+│   ├── tabsa.py           lee el estado oficial de TABSA
+│   ├── open_meteo.py      clima y oleaje (solo uso no comercial)
+│   └── met_norway.py      clima con uso comercial permitido
+├── forecast.py            pronóstico horario del momento (en .cache/, fuera del repo)
+├── model.py               modelo de riesgo que aprende de los datos
+├── conditions.py          situación de cada cruce: única fuente para web y avisos
+├── web.py                 la web (un solo HTML, sin librerías)
+├── alerts.py              qué cambió y el aviso
+├── channels/telegram.py   envío por Telegram
+├── storage.py · net.py · timeutil.py
+data/                      los datos (ver "Datos")
 ├── auto/                  lo escribe el bot
 ├── manual/                lo cargás vos
+├── model/modelo.json      el modelo entrenado
 └── legacy/auto.db         respaldo del formato viejo (SQLite)
-tests/                     pruebas automáticas
-scripts/migrar_a_csv.py    migración única de SQLite a CSV
-docs/                      guías (GitHub Actions, guion de conversaciones)
+tests/                     pruebas automáticas (python -m unittest -v)
+scripts/                   migración única de SQLite a CSV
+docs/                      GitHub Actions, guion de conversaciones, modelo de negocio
 .github/workflows/
 ├── collect.yml            recolección cada 30 min (no renombrar: lo usa cron-job.org)
 └── tests.yml              corre las pruebas cuando cambia el código
 ```
 
-## Puesta en marcha (VS Code)
-
-1. Abrí esta carpeta en VS Code (`Archivo > Abrir carpeta`).
-2. Abrí una terminal (`Terminal > Nueva terminal`).
-3. Probá una recolección (los comandos se corren desde la carpeta raíz del proyecto):
-
-```
-python -m corredor run
-python -m corredor report
-```
-
-Si ves datos de viento por cada punto, funciona. Si hay errores, mirá `python -m corredor report` (cuenta de errores) y revisá tu conexión.
-
 ## Dejarlo corriendo
 
-**Gratis y sin tu PC:** seguí [docs/SETUP_GITHUB.md](docs/SETUP_GITHUB.md) (GitHub Actions con un repositorio privado).
+**Gratis y sin tu PC:** GitHub Actions, ver [docs/SETUP_GITHUB.md](docs/SETUP_GITHUB.md). **En tu PC:** `python -m corredor loop --every 30`.
 
-**En tu PC**, cada 30 minutos, de forma continua:
+## Cargar datos a mano
 
-```
-python -m corredor loop --every 30
-```
-
-Para que no dependa de tu computadora, lo ideal es correrlo en un servidor chico (un VPS barato o una Raspberry Pi) con `cron`:
-
-```
-*/30 * * * * cd /ruta/a/corredor-austral && /usr/bin/python3 -m corredor run >> recolector.log 2>&1
-```
-
-## Cargar datos a mano (lo más valioso)
-
-El clima solo no alcanza para predecir. Necesitás **qué pasó de verdad**. Cada vez que tengas un dato, cargalo:
+Lo que vivieron de verdad los choferes también sirve:
 
 ```
 python -m corredor crossing punta_delgada_bahia_azul 150 --note "cola de 20 camiones"
 python -m corredor status paso_san_sebastian abierto --note "cadenas obligatorias"
 python -m corredor event mar suspendido --place punta_delgada --note "viento fuerte"
-python -m corredor event aire cancelado --place rio_grande --note "vuelo de carga cancelado"
 ```
 
-Pedile a los choferes con los que hables que te cuenten sus demoras reales: cada una vale oro para el futuro modelo.
+## Fuentes y condiciones de uso
 
-## Exportar y analizar
-
-```
-python -m corredor export datos.csv
-```
-
-Podés abrir el CSV en Excel o en Python (pandas) para empezar a buscar relaciones entre viento y demoras.
-
-## BETA: web, Telegram y WhatsApp
-
-Con los datos recolectados, la BETA estima el **riesgo de demora por viento** en cada cruce:
-
-| Riesgo | Ráfaga actual (provisorio) |
-|---|---|
-| 🟢 bajo | menos de 50 km/h |
-| 🟡 medio | desde 50 km/h |
-| 🔴 alto | desde 70 km/h |
-
-Para cada cruce toma la ráfaga más alta entre sus puntos: Primera Angostura usa Punta Delgada y Bahía Azul, y Punta Arenas – Porvenir usa esas dos ciudades. **No es el estado oficial de TABSA**, y así lo dicen todos los canales. Los umbrales están en `corredor/config.py` y se van a ajustar cuando tengamos el historial real de suspensiones.
-
-```
-python -m corredor web            # genera la web en _site/index.html (abrila con doble clic)
-python -m corredor resumen        # muestra el mensaje que va a Telegram y WhatsApp
-python -m corredor notify --force # manda ese mensaje por Telegram (si está configurado)
-```
-
-- **Web:** una sola página, pensada para el celular y señal mala. Muestra el riesgo actual, el pronóstico de 24 h, un gráfico de las últimas 24 h y los demás puntos de la ruta. Si los datos tienen más de 2 h, lo avisa.
-- **Telegram:** el workflow `collect` manda un aviso cuando un cruce cambia de nivel, por ejemplo de bajo a medio. Para activarlo hay que cargar los Secrets `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` en GitHub. Sin ellos no envía nada.
-- **WhatsApp:** botón "Compartir por WhatsApp" en la web, que arma el mensaje con el resumen. No tiene costo. Los avisos automáticos por WhatsApp necesitan la API de Meta, que es paga (fase 5).
-
-## Qué falta (y cómo conseguirlo)
-
-- **Fuentes de mar y aire:** hoy solo hay oleaje de modelo y carga manual. En las conversaciones preguntá qué datos de barcos y vuelos de carga usan o dónde los miran.
-- **Estado oficial del paso y horarios del ferry:** no están automatizados. Revisá los términos de uso de cada sitio antes de hacer scraping, o buscá una fuente oficial con API. Mientras tanto, cargalo a mano con `status`.
-- **Coordenadas:** son aproximadas. Verificalas en un mapa y ajustá `PLACES` en `corredor/config.py`.
-
-## Aviso importante sobre las fuentes
-
-La API gratuita de Open-Meteo es para **uso no comercial**. Si vas a vender un servicio basado en estos datos, vas a necesitar un plan comercial de ellos u otra fuente (por ejemplo, datos oficiales del Servicio Meteorológico Nacional). Revisá sus términos actuales antes de cobrar.
+- **TABSA** (`tabsa.cl/estado-cruces`): sitio público, su `robots.txt` permite el acceso. Se lee una vez cada 30 minutos, se cita siempre la fuente y se aclara que no somos canal oficial.
+- **Open-Meteo:** gratis solo para uso **no comercial**.
+- **MET Norway:** gratis con uso comercial (CC BY 4.0, citando "MET Norway"). Se activa con `CORREDOR_MET_CONTACT`. En ese modo no se usa Open-Meteo (tampoco el oleaje).
 
 ## Datos
 
 Los datos son el activo principal del proyecto. Reglas:
 
 - **Solo se agregan filas al final.** Nunca se borran ni se reescriben.
-- **Horas en UTC** (`ts_utc`, formato `2026-11-17T20:29:16Z`). Se pasan a hora local recién al mostrarlas.
+- **Horas en UTC** (`ts_utc`, formato `2026-11-17T20:29:16Z`). Se pasan a hora local (UTC-3) recién al mostrarlas.
 - CSV en UTF-8, separado por comas, saltos de línea LF y primera fila con los nombres de las columnas. Una celda vacía significa "sin dato".
+- Todas las filas de una corrida (clima y TABSA) llevan el mismo `ts_utc`: así se cruzan para entrenar el modelo.
 - No abras y guardes estos archivos con Excel: puede cambiar el formato. Para analizarlos, abrí una copia o usá `python -m corredor export datos.csv`.
 
 ### Carpetas
 
 | Carpeta | Quién escribe | Archivos |
 |---|---|---|
-| `data/auto/` | Solo el workflow `collect` (bot) | `weather_obs.csv`, `marine_obs.csv`, `collector_errors.csv` |
-| `data/manual/` | Solo vos, con `python -m corredor status / event / crossing` | `status_obs.csv`, `events.csv`, `crossings.csv` (se crean con la primera carga) |
-| `data/legacy/` | Nadie (respaldo) | `auto.db`: el formato viejo (SQLite), hasta el 17/11/2026. Todas sus filas ya están en `data/auto/` |
-
-Como el bot y vos nunca escriben el mismo archivo, git no da conflictos.
+| `data/auto/` | Solo el workflow `collect` (bot) | `weather_obs.csv`, `marine_obs.csv`, `tabsa_estado.csv`, `tabsa_programados.csv`, `tabsa_cambios.csv`, `collector_errors.csv` |
+| `data/manual/` | Solo vos, con `status / event / crossing` | `status_obs.csv`, `events.csv`, `crossings.csv` (se crean con la primera carga) |
+| `data/model/` | El workflow, una vez por día | `modelo.json`: el modelo entrenado y sus métricas |
+| `data/legacy/` | Nadie (respaldo) | `auto.db`: formato viejo (SQLite), hasta el 17/11/2026. Todas sus filas ya están en `data/auto/` |
 
 ### Columnas
 
-#### `data/auto/weather_obs.csv`: clima (Open-Meteo)
-Una fila por lugar y corrida. Todas las filas de una corrida tienen el mismo `ts_utc`.
+#### `data/auto/tabsa_estado.csv`: estado oficial por cruce (una fila por cruce y corrida)
+| Columna | Descripción |
+|---|---|
+| `ts_utc` | Hora de la lectura |
+| `crossing` | `primera_angostura`, `rio_verde` (el nombre de TABSA en minúsculas y sin tildes) |
+| `status` | Como lo publica TABSA, en mayúsculas: `NORMAL`, `SUSPENDIDO`, ... |
+| `icon` | Nombre del ícono de estado de TABSA (p. ej. `EstadoCruceEnViaje`), respaldo del texto |
+
+#### `data/auto/tabsa_programados.csv`: salidas programadas Punta Arenas ↔ Porvenir (una fila por salida y corrida)
+`ts_utc`, `date` (AAAA-MM-DD, local), `origin`, `destination`, `boarding` y `departure` (HH:MM local: embarque y zarpe), `status`, `icon`.
+
+#### `data/auto/tabsa_cambios.csv`: cambios de estado
+| Columna | Descripción |
+|---|---|
+| `ts_utc` | Cuándo se detectó el cambio |
+| `subject` | El cruce (`primera_angostura`) o la salida (`2026-11-18 08:00 Porvenir -> Punta Arenas`) |
+| `previous` | Estado anterior (vacío la primera vez que se ve un cruce) |
+| `current` | Estado nuevo |
+
+#### `data/auto/weather_obs.csv`: clima
+Una fila por lugar y corrida.
 
 | Columna | Unidad | Descripción |
 |---|---|---|
 | `ts_utc` | | Hora de la corrida |
-| `place` | | `rio_grande`, `ushuaia`, `san_sebastian`, `punta_delgada`, `bahia_azul`, `porvenir`, `punta_arenas` |
+| `place` | | `rio_grande`, `ushuaia`, `san_sebastian`, `punta_delgada`, `bahia_azul`, `porvenir`, `punta_arenas`, `rio_verde` (desde el 17/11/2026) |
 | `temp_c` | °C | Temperatura a 2 m |
 | `wind_kmh` | km/h | Viento medio a 10 m |
 | `gust_kmh` | km/h | Ráfaga a 10 m |
 | `wind_dir_deg` | grados | De dónde viene el viento (0 = norte, 90 = este) |
 | `precip_mm` | mm | Precipitación |
 | `forecast_gust_max_24h_kmh` | km/h | Ráfaga máxima pronosticada para las próximas 24 h |
-| `source` | | `open-meteo` |
+| `source` | | `open-meteo` o `met-norway` |
 
-#### `data/auto/marine_obs.csv`: oleaje (Open-Meteo Marine)
+#### `data/auto/marine_obs.csv`: oleaje (solo con Open-Meteo)
 | Columna | Unidad | Descripción |
 |---|---|---|
 | `ts_utc`, `place` | | Como en clima. Lugares: `punta_delgada`, `bahia_azul`, `ushuaia` |
@@ -158,7 +184,7 @@ Una fila por lugar y corrida. Todas las filas de una corrida tienen el mismo `ts
 | Columna | Descripción |
 |---|---|
 | `ts_utc` | Cuándo falló |
-| `where_` | Qué consulta (`weather`, `marine`; en datos viejos, `weather:<lugar>`) |
+| `where_` | Qué fuente (`weather`, `marine`, `tabsa`, `forecast`; en datos viejos, `weather:<lugar>`) |
 | `error` | Mensaje (máx. 500 caracteres) |
 
 #### `data/manual/status_obs.csv`: estados cargados a mano
@@ -176,7 +202,7 @@ Una fila por lugar y corrida. Todas las filas de una corrida tienen el mismo `ts
 python -m unittest -v
 ```
 
-Corren solas en GitHub cada vez que cambia el código (workflow `tests`).
+Corren solas en GitHub cada vez que cambia el código (workflow `tests`). Usan carpetas temporales y no pueden salir a internet ni abrir el navegador: nunca tocan los datos reales.
 
 ## Plan de la semana
 
