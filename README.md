@@ -15,7 +15,7 @@ corredor/                  el código
 ├── net.py                 consultas HTTP con reintentos
 └── sources/
     └── open_meteo.py      fuente de clima y oleaje
-data/                      los datos (ver data/README.md)
+data/                      los datos (ver la sección "Datos" más abajo)
 ├── auto/                  lo escribe el bot
 ├── manual/                lo cargás vos
 └── legacy/auto.db         respaldo del formato viejo (SQLite)
@@ -87,20 +87,66 @@ Podés abrir el CSV en Excel o en Python (pandas) para empezar a buscar relacion
 
 La API gratuita de Open-Meteo es para **uso no comercial**. Si vas a vender un servicio basado en estos datos, vas a necesitar un plan comercial de ellos u otra fuente (por ejemplo, datos oficiales del Servicio Meteorológico Nacional). Revisá sus términos actuales antes de cobrar.
 
-## Estructura de los datos (CSV)
+## Datos
 
-Cada tabla es un archivo CSV: lo del bot está en `data/auto/` y lo que cargás vos en `data/manual/`. Siempre se agregan filas al final, y las horas están en UTC. El detalle de cada columna, con sus unidades, está en [data/README.md](data/README.md).
+Los datos son el activo principal del proyecto. Reglas:
 
-Si abrís un CSV en Excel, no lo guardes encima: Excel puede cambiar el formato.
+- **Solo se agregan filas al final.** Nunca se borran ni se reescriben.
+- **Horas en UTC** (`ts_utc`, formato `2026-11-17T20:29:16Z`). Se pasan a hora local recién al mostrarlas.
+- CSV en UTF-8, separado por comas, saltos de línea LF y primera fila con los nombres de las columnas. Una celda vacía significa "sin dato".
+- No abras y guardes estos archivos con Excel: puede cambiar el formato. Para analizarlos, abrí una copia o usá `python -m corredor export datos.csv`.
 
-| Tabla | Contenido |
+### Carpetas
+
+| Carpeta | Quién escribe | Archivos |
+|---|---|---|
+| `data/auto/` | Solo el workflow `collect` (bot) | `weather_obs.csv`, `marine_obs.csv`, `collector_errors.csv` |
+| `data/manual/` | Solo vos, con `python -m corredor status / event / crossing` | `status_obs.csv`, `events.csv`, `crossings.csv` (se crean con la primera carga) |
+| `data/legacy/` | Nadie (respaldo) | `auto.db`: el formato viejo (SQLite), hasta el 17/11/2026. Todas sus filas ya están en `data/auto/` |
+
+Como el bot y vos nunca escriben el mismo archivo, git no da conflictos.
+
+### Columnas
+
+#### `data/auto/weather_obs.csv`: clima (Open-Meteo)
+Una fila por lugar y corrida. Todas las filas de una corrida tienen el mismo `ts_utc`.
+
+| Columna | Unidad | Descripción |
+|---|---|---|
+| `ts_utc` | | Hora de la corrida |
+| `place` | | `rio_grande`, `ushuaia`, `san_sebastian`, `punta_delgada`, `bahia_azul`, `porvenir`, `punta_arenas` |
+| `temp_c` | °C | Temperatura a 2 m |
+| `wind_kmh` | km/h | Viento medio a 10 m |
+| `gust_kmh` | km/h | Ráfaga a 10 m |
+| `wind_dir_deg` | grados | De dónde viene el viento (0 = norte, 90 = este) |
+| `precip_mm` | mm | Precipitación |
+| `forecast_gust_max_24h_kmh` | km/h | Ráfaga máxima pronosticada para las próximas 24 h |
+| `source` | | `open-meteo` |
+
+#### `data/auto/marine_obs.csv`: oleaje (Open-Meteo Marine)
+| Columna | Unidad | Descripción |
+|---|---|---|
+| `ts_utc`, `place` | | Como en clima. Lugares: `punta_delgada`, `bahia_azul`, `ushuaia` |
+| `wave_height_m` | m | Altura de ola |
+| `wave_period_s` | s | Período de ola |
+| `wave_dir_deg` | grados | De dónde viene la ola |
+| `source` | | `open-meteo-marine` |
+
+#### `data/auto/collector_errors.csv`: fallas del recolector
+| Columna | Descripción |
 |---|---|
-| `weather_obs` | Viento, ráfagas, temperatura, lluvia y pronóstico de ráfaga máxima a 24 h |
-| `marine_obs` | Altura y período de olas |
-| `status_obs` | Estados cargados a mano |
-| `events` | Cortes, paros, suspensiones, cancelaciones (tierra, mar, aire) |
-| `crossings` | Demoras reales de cruce, en minutos |
-| `collector_errors` | Fallas del recolector |
+| `ts_utc` | Cuándo falló |
+| `where_` | Qué consulta (`weather`, `marine`; en datos viejos, `weather:<lugar>`) |
+| `error` | Mensaje (máx. 500 caracteres) |
+
+#### `data/manual/status_obs.csv`: estados cargados a mano
+`ts_utc`, `subject` (p. ej. `paso_san_sebastian`), `status` (p. ej. `abierto`), `note`, `source` (`manual`).
+
+#### `data/manual/events.csv`: eventos
+`ts_utc`, `mode` (`tierra` / `mar` / `aire`), `place`, `kind` (p. ej. `suspendido`), `note`.
+
+#### `data/manual/crossings.csv`: demoras reales de cruce
+`ts_utc`, `route` (p. ej. `punta_delgada_bahia_azul`), `delay_minutes`, `note`.
 
 ## Pruebas
 

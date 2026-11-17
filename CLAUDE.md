@@ -28,7 +28,7 @@ Sabemos algo de programación: entendemos el código si lo vemos, pero no escrib
   - **Ojo:** el código actual **no lee TABSA**. `python -m corredor run` solo consulta
     clima y oleaje en Open-Meteo. Todavía no se guarda ningún estado de cruce.
   - **CSV, uno por tabla.** El diccionario completo (columnas y unidades) está en
-    `data/README.md`. Siempre se **agregan filas al final**: nunca se borran ni se reescriben.
+    la sección "Datos" del `README.md`. Siempre se **agregan filas al final**: nunca se borran ni se reescriben.
     - `data/auto/`: lo escribe solo el workflow (`weather_obs.csv`, `marine_obs.csv`,
       `collector_errors.csv`). Después de cada corrida el bot (`corredor-bot`) hace un
       commit "datos <fecha UTC>".

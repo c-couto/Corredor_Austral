@@ -15,7 +15,7 @@ Antes de empezar, revisá en tu cuenta cuántos minutos gratis de Actions tenés
 
 ### 1. Datos iniciales
 
-Ya está hecho: el repositorio incluye los datos en `data/` (ver `data/README.md`). Si arrancás de cero, no hace falta nada: la primera corrida crea los CSV.
+Ya está hecho: el repositorio incluye los datos en `data/` (ver la sección "Datos" del `README.md`). Si arrancás de cero, no hace falta nada: la primera corrida crea los CSV.
 
 ### 2. Apagá la tarea programada de tu PC (si la creaste)
 
