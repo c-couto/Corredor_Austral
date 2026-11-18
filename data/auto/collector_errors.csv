@@ -58,3 +58,5 @@ ts_utc,where_,error
 2026-11-18T15:03:12Z,tabsa,"fila de cruce programado inesperada: ['Puerto Natales', 'Puerto Edén', '20:00 (18-11)', '05:00', 'NORMAL']"
 2026-11-18T15:32:38Z,weather,<urlopen error _ssl.c:1063: The handshake operation timed out>
 2026-11-18T15:32:48Z,tabsa,"fila de cruce programado inesperada: ['Puerto Natales', 'Puerto Edén', '20:00 (18-11)', '05:00', 'NORMAL']"
+2026-11-18T16:02:51Z,weather,<urlopen error _ssl.c:1063: The handshake operation timed out>
+2026-11-18T16:03:05Z,tabsa,"fila de cruce programado inesperada: ['Puerto Natales', 'Puerto Edén', '20:00 (18-11)', '05:00', 'NORMAL']"
