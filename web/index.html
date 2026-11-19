@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Corredor Austral · demo</title>
+<meta name="description" content="Estado de los cruces del Estrecho de Magallanes y viento en Primera Angostura (versión preliminar).">
+<meta name="theme-color" content="#0b3d63">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="hero">
+  <div class="in">
+    <div class="brand">
+      <svg class="flag" viewBox="0 0 960 640" role="img" aria-label="Bandera de Tierra del Fuego">
+        <rect width="960" height="640" fill="#fff"/>
+        <path fill="#1e85de" d="M190 0H960V640L890 450 540 352 562 265 428 285Z"/>
+        <path fill="#fd9a2f" d="M0 0 188 90 397 298 285 372H523L845 517 960 640H0Z"/>
+        <g fill="#fff">
+          <polygon points="680,34 688,58 712,58 693,72 700,95 680,81 660,95 667,72 648,58 672,58"/>
+          <polygon points="838,52 846,76 870,76 851,90 858,113 838,99 818,113 825,90 806,76 830,76"/>
+          <polygon points="642,178 650,202 674,202 655,216 662,239 642,225 622,239 629,216 610,202 634,202"/>
+          <polygon points="826,173 830,185 843,185 833,193 836,205 826,197 816,205 819,193 809,185 822,185"/>
+          <polygon points="845,359 853,383 877,383 858,397 865,420 845,406 825,420 832,397 813,383 837,383"/>
+        </g>
+      </svg>
+      <div>
+        <h1>Corredor Austral <span class="chip">demo</span></h1>
+        <p class="tag">Estado de los cruces del Estrecho de Magallanes</p>
+      </div>
+    </div>
+    <div class="clock">
+      <b id="clk">--:--</b>
+      <span id="clk-date">&nbsp;</span>
+      <small>Hora de la región · UTC-3</small>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div id="aviso" class="aviso" role="status" hidden></div>
+
+  <section class="card" id="estado" aria-labelledby="t-estado">
+    <h2 id="t-estado">Estado actual de los cruces</h2>
+    <p class="muted small">Según la página pública de TABSA · <span id="estado-hora">cargando…</span></p>
+    <ul class="cruces" id="cruces"><li class="muted">Cargando…</li></ul>
+    <h3>Próximos zarpes Punta Arenas ↔ Porvenir</h3>
+    <table class="zarpes">
+      <thead><tr><th>Zarpe</th><th>Sentido</th><th>Estado</th></tr></thead>
+      <tbody id="zarpes"><tr><td colspan="3" class="muted">Cargando…</td></tr></tbody>
+    </table>
+  </section>
+
+  <section class="card" id="viento" aria-labelledby="t-viento">
+    <h2 id="t-viento">Viento en Primera Angostura <span class="prelim">versión preliminar</span></h2>
+    <p class="muted small">Último dato: <span id="viento-hora">cargando…</span></p>
+    <div class="lugares" id="lugares"></div>
+    <p class="nota small">El indicador usa solo la ráfaga: <b>menos de 50 km/h</b> normal, <b>50–70 km/h</b> puede
+      haber suspensiones, <b>70 km/h o más</b> suspensión probable. Son umbrales provisorios: no es el estado oficial.</p>
+  </section>
+
+  <section class="card" id="grafico" aria-labelledby="t-grafico">
+    <h2 id="t-grafico">Ráfagas de las últimas 72 horas</h2>
+    <div id="chart" class="chart"><p class="muted small">Cargando…</p></div>
+    <p class="leyenda">
+      <span><i class="l-pd"></i>Punta Delgada</span>
+      <span><i class="l-ba"></i>Bahía Azul</span>
+      <span><i class="l-susp"></i>TABSA: Primera Angostura no normal</span>
+    </p>
+  </section>
+
+  <section class="card pronto" aria-labelledby="t-pronto">
+    <h2 id="t-pronto">Próximamente: pronóstico de 48 h</h2>
+    <p class="small">Estamos juntando el historial de suspensiones de TABSA junto con el viento, el oleaje y la marea.
+      Con esos datos vamos a estimar, hora por hora, la probabilidad de que se suspenda el cruce en las próximas 48 horas.</p>
+  </section>
+
+  <footer>
+    <p>Fuentes: estado de cruces de <a href="https://www.tabsa.cl/estado-cruces" rel="noopener">TABSA</a> (sitio
+      público) · clima <a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a>. Ante la duda, confirmá
+      siempre con TABSA.</p>
+    <p>Corredor Austral no es un canal oficial de TABSA ni del Gobierno de Tierra del Fuego. Los datos se actualizan
+      cada 30 minutos.</p>
+  </footer>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

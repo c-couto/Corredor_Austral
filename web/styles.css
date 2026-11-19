@@ -1,0 +1,100 @@
+:root {
+  --bg: #eef3f7; --card: #fff; --fg: #0f1d2b; --muted: #5b6b7b; --line: #dbe3ea; --brand: #0b4f79;
+  --ok: #14915a; --ok-bg: #d9f6e7; --mid: #c27400; --mid-bg: #ffefcf; --hi: #d62839; --hi-bg: #ffe1e3;
+  --nd: #7b8794; --nd-bg: #e8edf2; --pd: #0b6fb0; --ba: #0f9d8f;
+  --shadow: 0 1px 2px rgba(15, 29, 43, .06), 0 8px 24px rgba(15, 29, 43, .06);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #07121c; --card: #0f1e2b; --fg: #e7eef5; --muted: #93a4b5; --line: #1f3344; --brand: #5cc8ff;
+    --ok: #3ddc97; --ok-bg: #0d2c21; --mid: #f5b13d; --mid-bg: #33260b; --hi: #ff6b78; --hi-bg: #3a1418;
+    --nd: #8a99a8; --nd-bg: #1a2a38; --pd: #5cc8ff; --ba: #3ddcc8; --shadow: none;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); overflow-x: hidden;
+  font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: var(--brand); }
+h1 { font-size: 1.35rem; margin: 0; line-height: 1.15; }
+h2 { font-size: 1.08rem; margin: 0; }
+h3 { font-size: .92rem; margin: 18px 0 6px; }
+.muted { color: var(--muted); }
+.small { font-size: .82rem; margin: .3rem 0; }
+
+/* Encabezado */
+.hero { background: radial-gradient(120% 140% at 100% 0, #14a3b8 0, #0e7490 40%, #0b3d63 100%); color: #fff;
+  padding: 18px 16px 52px; }
+.hero .in { max-width: 720px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 14px;
+  justify-content: space-between; align-items: center; }
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.flag { width: 54px; height: 36px; border-radius: 4px; box-shadow: 0 2px 8px rgba(0, 0, 0, .25); flex: none; }
+.tag { margin: 2px 0 0; opacity: .85; font-size: .82rem; }
+.chip { font-size: .62rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; vertical-align: middle;
+  border: 1px solid currentColor; border-radius: 99px; padding: 1px 7px; opacity: .9; }
+.clock b { display: block; font-size: 2.2rem; line-height: 1; font-weight: 750; font-variant-numeric: tabular-nums; }
+.clock span { display: block; font-size: .85rem; margin-top: 4px; }
+.clock span::first-letter { text-transform: uppercase; }
+.clock small { font-size: .7rem; opacity: .75; }
+
+main { max-width: 720px; margin: -36px auto 0; padding: 0 16px 24px; position: relative; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px;
+  margin: 12px 0; box-shadow: var(--shadow); }
+.aviso { background: var(--mid-bg); color: var(--mid); border-radius: 12px; padding: 12px 14px; font-weight: 600;
+  margin: 12px 0; }
+
+/* Estado de los cruces */
+.cruces { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; }
+.cruces li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 12px;
+  border-radius: 12px; background: var(--bg); font-weight: 650; }
+.estado { display: inline-flex; align-items: center; gap: 6px; border-radius: 99px; padding: 3px 10px;
+  font-size: .8rem; font-weight: 750; white-space: nowrap; }
+.estado::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.e-ok { background: var(--ok-bg); color: var(--ok); }
+.e-bad { background: var(--hi-bg); color: var(--hi); }
+.e-nd { background: var(--nd-bg); color: var(--nd); }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: middle;
+  font-variant-numeric: tabular-nums; font-size: .9rem; }
+th { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+
+/* Viento */
+.prelim { font-size: .66rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--mid);
+  background: var(--mid-bg); border-radius: 99px; padding: 2px 8px; vertical-align: middle; white-space: nowrap; }
+.lugares { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin-top: 12px; }
+.lugar { border: 1px solid var(--line); border-top: 4px solid var(--nd); border-radius: 12px; padding: 12px; }
+.lugar.n-bajo { border-top-color: var(--ok); }
+.lugar.n-medio { border-top-color: var(--mid); }
+.lugar.n-alto { border-top-color: var(--hi); }
+.lugar h3 { margin: 0 0 8px; }
+.datos { display: flex; gap: 18px; flex-wrap: wrap; }
+.datos dt { font-size: .66rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.datos dd { margin: 0; font-size: 1.45rem; font-weight: 750; font-variant-numeric: tabular-nums;
+  display: flex; align-items: center; gap: 4px; }
+.datos dd small { font-size: .74rem; font-weight: 500; color: var(--muted); }
+.flecha { width: 22px; height: 22px; fill: var(--brand); }
+.indicador { margin: 10px 0 0; font-weight: 700; font-size: .9rem; display: flex; align-items: center; gap: 8px; }
+.indicador::before { content: ""; width: 11px; height: 11px; border-radius: 50%; background: currentColor; flex: none; }
+.i-bajo { color: var(--ok); } .i-medio { color: var(--mid); } .i-alto { color: var(--hi); } .i-nd { color: var(--nd); }
+.nota { background: var(--bg); border-radius: 10px; padding: 8px 10px; margin-top: 12px; }
+
+/* Gráfico */
+.chart svg { width: 100%; height: auto; display: block; margin-top: 8px; }
+.chart .z-medio { fill: var(--mid); opacity: .09; } .chart .z-alto { fill: var(--hi); opacity: .09; }
+.chart .umbral { stroke-dasharray: 3 3; stroke-width: 1; }
+.chart .u-medio { stroke: var(--mid); } .chart .u-alto { stroke: var(--hi); }
+.chart .eje { font-size: 10px; fill: var(--muted); }
+.chart .eje-dia { font-weight: 700; fill: var(--fg); }
+.chart .grilla { stroke: var(--line); }
+.chart .susp { fill: var(--hi); opacity: .14; }
+.chart .serie { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .s-pd { stroke: var(--pd); } .chart .s-ba { stroke: var(--ba); stroke-dasharray: 5 3; }
+.leyenda { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .74rem; color: var(--muted); margin: 6px 0 0; }
+.leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+.leyenda i { width: 16px; height: 3px; display: inline-block; border-radius: 2px; }
+.l-pd { background: var(--pd); }
+.l-ba { background: repeating-linear-gradient(90deg, var(--ba) 0 5px, transparent 5px 8px); }
+.l-susp { background: var(--hi); opacity: .35; height: 10px !important; }
+
+.pronto { border-style: dashed; background: linear-gradient(160deg, var(--card), var(--bg)); }
+footer { margin: 24px 0 8px; font-size: .78rem; color: var(--muted); }
