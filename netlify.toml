@@ -1,0 +1,23 @@
+# Netlify: publica SOLO la carpeta web/ (sitio estático, sin paso de build).
+# Los datos NO se copian al sitio: la página los lee en vivo de raw.githubusercontent.com.
+
+[build]
+  base = "web"
+  publish = "."
+  command = ""
+
+  # Netlify ejecuta este comando antes de cada deploy (desde web/):
+  #   termina en 0  -> se CANCELA el deploy (no cambió nada del sitio; p. ej. commits del bot en data/)
+  #   termina en 1  -> se publica
+  # Si es el primer deploy (los dos commits son iguales) se publica siempre.
+  # Si git falla (p. ej. no encuentra el commit anterior), también se publica.
+  ignore = "if [ \"$CACHED_COMMIT_REF\" = \"$COMMIT_REF\" ]; then exit 1; fi; git diff --quiet \"$CACHED_COMMIT_REF\" \"$COMMIT_REF\" -- . ../netlify.toml"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # La página solo puede cargar sus propios archivos y leer datos de raw.githubusercontent.com.
+    Content-Security-Policy = "default-src 'self'; connect-src 'self' https://raw.githubusercontent.com; img-src 'self' data:; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
