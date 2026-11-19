@@ -4,13 +4,20 @@ La página se arma con JavaScript, así que primero se renderiza con Chrome/Edge
 headless (ver browser.py) y después se leen las tablas visibles, igual que las
 ve una persona. No se usan las APIs internas de TABSA.
 
-Si la estructura de la página cambia, `parse` lanza TabsaFormatError en lugar
-de devolver datos dudosos: la falla queda en collector_errors.csv.
+Si cambia la tabla de ESTADO de los cruces (lo más importante), `parse` lanza
+TabsaFormatError en lugar de devolver datos dudosos: la falla queda en
+collector_errors.csv. Una fila rara en la tabla de cruces PROGRAMADOS no tumba la
+lectura: esa fila se saltea (queda en `TabsaPage.skipped` y en el registro del
+workflow) y el resto se guarda igual.
+
+Horas: TABSA a veces escribe la fecha entre paréntesis, p. ej. "20:00 (18-11)"
+cuando el embarque es el día anterior al zarpe.
 """
 
 from __future__ import annotations
 
 import re
+import sys
 import unicodedata
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
@@ -19,7 +26,8 @@ from pathlib import PurePosixPath
 from .. import browser, config
 
 DATE_RE = re.compile(r"(\d{2})-(\d{2})-(\d{4})")
-TIME_RE = re.compile(r"^\d{1,2}:\d{2}$")
+# "05:00" o "20:00 (18-11)" (hora y, opcional, día-mes entre paréntesis)
+TIME_RE = re.compile(r"^(\d{1,2}:\d{2})(?:\s*\((\d{1,2})-(\d{1,2})\))?$")
 
 
 class TabsaFormatError(ValueError):
@@ -36,10 +44,10 @@ class CrossingState:
 
 @dataclass(frozen=True)
 class Sailing:
-    date: str          # AAAA-MM-DD (hora local)
+    date: str          # AAAA-MM-DD (hora local) del zarpe
     origin: str
     destination: str
-    boarding: str      # HH:MM local
+    boarding: str      # tal cual lo publica TABSA: "HH:MM" o "HH:MM (DD-MM)"
     departure: str     # HH:MM local
     status: str
     icon: str
@@ -54,6 +62,20 @@ class Sailing:
 class TabsaPage:
     crossings: list[CrossingState] = field(default_factory=list)
     sailings: list[Sailing] = field(default_factory=list)
+    skipped: list[str] = field(default_factory=list)  # filas de programados que no se entendieron
+
+
+def _with_day(table_date: str, day: str | None, month: str | None) -> str:
+    """Fecha AAAA-MM-DD: la de la tabla, o la del "(DD-MM)" si TABSA la indica."""
+    if not day:
+        return table_date
+    year, table_month = int(table_date[:4]), int(table_date[5:7])
+    m = int(month)
+    if m == 1 and table_month == 12:
+        year += 1
+    elif m == 12 and table_month == 1:
+        year -= 1
+    return f"{year:04d}-{m:02d}-{int(day):02d}"
 
 
 def slug(text: str) -> str:
@@ -147,15 +169,22 @@ def parse(html: str) -> TabsaPage:
                 page.crossings.append(CrossingState(slug(texts[0]), texts[0], texts[-1].upper(), _icon(r)))
         elif header and header[0] == "origen":
             if current_date is None:
-                raise TabsaFormatError("tabla de cruces programados sin fecha")
+                page.skipped.append(f"tabla de cruces programados sin fecha ({len(body)} filas)")
+                continue
             for r in body:
                 texts = _texts(r)
-                if len(texts) < 5 or not (TIME_RE.match(texts[2]) and TIME_RE.match(texts[3])):
-                    raise TabsaFormatError(f"fila de cruce programado inesperada: {texts}")
-                page.sailings.append(Sailing(current_date, texts[0], texts[1], texts[2], texts[3],
+                boarding = TIME_RE.match(texts[2]) if len(texts) >= 5 else None
+                departure = TIME_RE.match(texts[3]) if len(texts) >= 5 else None
+                if not (boarding and departure):
+                    page.skipped.append(f"fila de cruce programado inesperada: {texts}")
+                    continue
+                date = _with_day(current_date, departure.group(2), departure.group(3))
+                page.sailings.append(Sailing(date, texts[0], texts[1], texts[2], departure.group(1),
                                              texts[4].upper(), _icon(r)))
     if not any(c.key == "primera_angostura" for c in page.crossings):
         raise TabsaFormatError("no se encontró la tabla de estado con Primera Angostura")
+    for msg in page.skipped:
+        print(f"[aviso] TABSA: {msg}", file=sys.stderr)
     return page
 
 

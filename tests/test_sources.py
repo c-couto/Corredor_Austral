@@ -1,7 +1,9 @@
 """Lector de TABSA, MET Norway y búsqueda del navegador."""
 
+import io
 import os
 import unittest
+from contextlib import redirect_stderr
 from unittest import mock
 
 from corredor import browser
@@ -27,11 +29,34 @@ class TabsaParseTest(unittest.TestCase):
                                             '<td class="align-left bold">Suspendido</td>', 1)
         self.assertEqual(tabsa.parse(html).crossings[0].status, "SUSPENDIDO")
 
-    def test_si_cambia_la_pagina_falla_en_vez_de_inventar(self):
+    def test_si_falta_la_tabla_de_estado_falla_en_vez_de_inventar(self):
         with self.assertRaises(tabsa.TabsaFormatError):
             tabsa.parse("<html><body><div id='root'></div></body></html>")  # sin JavaScript renderizado
-        with self.assertRaises(tabsa.TabsaFormatError):
-            tabsa.parse(tabsa_fixture_html().replace("09:00", "a confirmar"))
+
+    def test_una_fila_rara_de_zarpes_no_tumba_la_lectura(self):
+        with redirect_stderr(io.StringIO()):
+            page = tabsa.parse(tabsa_fixture_html().replace("09:00", "a confirmar"))
+        self.assertEqual([c.status for c in page.crossings], ["NORMAL", "NORMAL"])  # el estado se guarda
+        self.assertEqual(len(page.sailings), 5)                                    # se saltea solo esa fila
+        self.assertIn("a confirmar", page.skipped[0])
+
+    def test_hora_con_fecha_entre_parentesis(self):
+        # Caso real del 18/11/2026: Puerto Natales -> Puerto Edén, embarque "20:00 (18-11)".
+        row = ('<tr><td>Puerto Natales</td><td>Puerto Edén</td><td>20:00 (18-11)</td><td>05:00</td>'
+               '<td class="align-right"><img src="/static/media/EstadoCruceEnViaje.x.svg"></td>'
+               '<td class="align-left bold">NORMAL</td></tr>')
+        html = tabsa_fixture_html().replace("</tbody></table>", row + "</tbody></table>", 2)
+        page = tabsa.parse(html)
+        self.assertEqual(page.skipped, [])
+        eden = [s for s in page.sailings if s.destination == "Puerto Edén"]
+        self.assertTrue(eden)
+        self.assertEqual((eden[0].boarding, eden[0].departure, eden[0].status), ("20:00 (18-11)", "05:00", "NORMAL"))
+
+    def test_zarpe_con_fecha_propia_y_cambio_de_anio(self):
+        self.assertEqual(tabsa._with_day("2026-11-19", None, None), "2026-11-19")
+        self.assertEqual(tabsa._with_day("2026-11-19", "20", "11"), "2026-11-20")
+        self.assertEqual(tabsa._with_day("2026-12-31", "1", "1"), "2027-01-01")
+        self.assertEqual(tabsa._with_day("2027-01-01", "31", "12"), "2026-12-31")
 
     def test_slug(self):
         self.assertEqual(tabsa.slug("Río Verde"), "rio_verde")
