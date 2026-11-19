@@ -238,7 +238,8 @@ def snapshot(now: datetime | None = None, fetch_forecast: bool = True) -> Snapsh
     if sailing_rows:
         last_ts = sailing_rows[-1]["ts_utc"]
         pap = next((r for r in routes if r.key == "punta_arenas_porvenir"), None)
-        for r in (r for r in sailing_rows if r["ts_utc"] == last_ts):
+        for r in (r for r in sailing_rows
+                  if r["ts_utc"] == last_ts and model.is_route_sailing(r, "punta_arenas_porvenir")):
             dep = local_to_utc(r["date"], r["departure"])
             if dep < now - timedelta(hours=1):
                 continue

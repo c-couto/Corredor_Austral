@@ -62,6 +62,15 @@ class SnapshotTest(TempDataDir):
         self.assertTrue(snap.is_stale())
         self.assertIn("La probabilidad de suspensión es una estimación", conditions.summary_text(snap))
 
+    def test_proximos_zarpes_solo_de_punta_arenas_porvenir(self):
+        ts = format_ts(NOW - timedelta(minutes=5))
+        storage.append_rows(storage.TABSA_SAILINGS, [
+            {"ts_utc": ts, "date": "2026-11-17", "departure": "18:00", "origin": o, "destination": d, "status": "NORMAL"}
+            for o, d in (("Puerto Natales", "Puerto Edén"), ("Punta Arenas", "Puerto Williams"),
+                         ("Punta Arenas", "Porvenir"))])
+        snap = conditions.snapshot(now=NOW, fetch_forecast=False)
+        self.assertEqual([(s.origin, s.destination) for s in snap.sailings], [("Punta Arenas", "Porvenir")])
+
     def test_dato_oficial_viejo_no_se_muestra_como_actual(self):
         add_run(NOW - timedelta(hours=5), {"punta_delgada": 30}, "SUSPENDIDO")
         snap = conditions.snapshot(now=NOW, fetch_forecast=False)

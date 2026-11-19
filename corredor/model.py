@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import math
+import unicodedata
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -32,6 +33,27 @@ from .timeutil import format_ts, local_to_utc, parse_ts
 
 FEATURES = ("rafaga_kmh", "viento_kmh", "dir_seno", "dir_coseno")
 SAILING_WINDOW = timedelta(hours=1)
+
+# Puertos de cada cruce con horario. TABSA publica en la misma tabla otras rutas
+# (Puerto Natales -> Puerto Edén, Punta Arenas -> Puerto Williams...) que NO son de este cruce.
+SCHEDULED_PORTS: dict[str, frozenset[str]] = {
+    "punta_arenas_porvenir": frozenset({"punta arenas", "porvenir"}),
+}
+
+
+def _port(name: str) -> str:
+    """Nombre de puerto normalizado: sin tildes, en minúsculas y sin espacios de más."""
+    plain = unicodedata.normalize("NFKD", name or "").encode("ascii", "ignore").decode()
+    return " ".join(plain.lower().split())
+
+
+def is_route_sailing(row: dict, route_key: str) -> bool:
+    """True si el zarpe (fila de tabsa_programados) es del cruce `route_key`."""
+    ports = SCHEDULED_PORTS.get(route_key)
+    if not ports:
+        return False
+    origin, destination = _port(row.get("origin", "")), _port(row.get("destination", ""))
+    return origin != destination and origin in ports and destination in ports
 
 
 # ------------------------------------------------------------------ utilidades
@@ -235,7 +257,7 @@ def samples_for(route_key: str) -> list[tuple[datetime, list[float], int]]:
                     out.append((parse_ts(r["ts_utc"]), x, is_disrupted(r["status"])))
     if route.get("scheduled"):
         for r in storage.read_rows(storage.TABSA_SAILINGS):
-            if not r["status"] or r["ts_utc"] not in runs:
+            if not r["status"] or r["ts_utc"] not in runs or not is_route_sailing(r, route_key):
                 continue
             ts = parse_ts(r["ts_utc"])
             if abs(ts - local_to_utc(r["date"], r["departure"])) <= SAILING_WINDOW:

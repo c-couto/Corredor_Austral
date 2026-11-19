@@ -84,6 +84,28 @@ class TrainingDataTest(TempDataDir):
         ])
         self.assertEqual([y for _, _, y in model.samples_for("punta_arenas_porvenir")], [1])
 
+    def test_zarpes_de_otras_rutas_no_se_usan_para_entrenar(self):
+        ts = "2026-11-19T08:30:00Z"  # 05:30 local
+        storage.append_rows(storage.WEATHER, [
+            {"ts_utc": ts, "place": "punta_arenas", "gust_kmh": 70, "wind_kmh": 40, "wind_dir_deg": 250}])
+        storage.append_rows(storage.TABSA_SAILINGS, [
+            {"ts_utc": ts, "date": "2026-11-19", "departure": "05:00", "origin": "Puerto Natales",
+             "destination": "Puerto Edén", "status": "SUSPENDIDO"},      # otra ruta: no cuenta
+            {"ts_utc": ts, "date": "2026-11-19", "departure": "06:00", "origin": "Punta Arenas",
+             "destination": "Puerto Williams", "status": "SUSPENDIDO"},  # otra ruta: no cuenta
+            {"ts_utc": ts, "date": "2026-11-19", "departure": "06:00", "origin": "Porvenir",
+             "destination": "Punta Arenas", "status": "NORMAL"},         # este cruce: cuenta
+        ])
+        self.assertEqual([y for _, _, y in model.samples_for("punta_arenas_porvenir")], [0])
+
+    def test_reconoce_el_cruce_aunque_cambie_la_escritura(self):
+        self.assertTrue(model.is_route_sailing({"origin": "PUNTA  ARENAS", "destination": "Pórvenir"},
+                                               "punta_arenas_porvenir"))
+        self.assertFalse(model.is_route_sailing({"origin": "Porvenir", "destination": "Porvenir"},
+                                                "punta_arenas_porvenir"))
+        self.assertFalse(model.is_route_sailing({"origin": "Punta Arenas", "destination": "Porvenir"},
+                                                "primera_angostura"))
+
     def test_guardar_y_cargar(self):
         models = model.train_all()
         self.assertTrue(model.model_path().exists())
