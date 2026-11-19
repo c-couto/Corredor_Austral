@@ -631,3 +631,11 @@ ts_utc,place,temp_c,wind_kmh,gust_kmh,wind_dir_deg,precip_mm,forecast_gust_max_2
 2026-11-19T12:01:17Z,porvenir,14.0,1.8,11.5,307.0,0.0,31.3,open-meteo
 2026-11-19T12:01:17Z,punta_arenas,11.7,7.6,21.6,83.0,0.0,26.3,open-meteo
 2026-11-19T12:01:17Z,rio_verde,13.7,9.4,23.4,138.0,0.0,42.1,open-meteo
+2026-11-19T12:31:04Z,rio_grande,10.2,14.9,28.1,30.0,0.0,48.6,open-meteo
+2026-11-19T12:31:04Z,ushuaia,12.3,10.5,29.9,12.0,0.0,65.2,open-meteo
+2026-11-19T12:31:04Z,san_sebastian,11.6,17.6,37.8,48.0,0.0,54.7,open-meteo
+2026-11-19T12:31:04Z,punta_delgada,13.0,23.3,38.9,56.0,0.0,59.0,open-meteo
+2026-11-19T12:31:04Z,bahia_azul,12.9,23.3,38.9,56.0,0.0,59.0,open-meteo
+2026-11-19T12:31:04Z,porvenir,14.7,3.9,14.0,323.0,0.0,31.3,open-meteo
+2026-11-19T12:31:04Z,punta_arenas,12.2,7.8,22.7,86.0,0.0,26.3,open-meteo
+2026-11-19T12:31:04Z,rio_verde,14.7,7.9,23.8,137.0,0.0,42.1,open-meteo
