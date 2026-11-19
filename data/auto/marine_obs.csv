@@ -230,3 +230,6 @@ ts_utc,place,wave_height_m,wave_period_s,wave_dir_deg,source
 2026-11-19T01:28:18Z,punta_delgada,0.38,2.85,44.0,open-meteo-marine
 2026-11-19T01:28:18Z,bahia_azul,0.54,3.9,59.0,open-meteo-marine
 2026-11-19T01:28:18Z,ushuaia,0.02,3.5,172.0,open-meteo-marine
+2026-11-19T01:31:00Z,punta_delgada,0.38,2.9,44.0,open-meteo-marine
+2026-11-19T01:31:00Z,bahia_azul,0.54,3.95,59.0,open-meteo-marine
+2026-11-19T01:31:00Z,ushuaia,0.02,3.6,172.0,open-meteo-marine
