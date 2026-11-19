@@ -23,3 +23,7 @@ _site/
 
 # Pronóstico horario del momento (se reemplaza en cada corrida)
 .cache/
+
+# Variables de entorno locales (pueden tener claves)
+.env
+.env.*
