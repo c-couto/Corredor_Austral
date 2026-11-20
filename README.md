@@ -214,6 +214,72 @@ Una fila por lugar y corrida.
 #### `data/manual/crossings.csv`: demoras reales de cruce
 `ts_utc`, `route` (p. ej. `punta_delgada_bahia_azul`), `delay_minutes`, `note`.
 
+## Mapa en vivo (premium)
+
+Idea: mostrar en un mapa dónde está cada ferry en este momento. Va a ser la función premium.
+**Hoy estamos en la etapa 1: medir si hay suficientes datos AIS en la zona.** Todavía no hay mapa público.
+
+**Fuente:** los barcos de pasajeros transmiten su posición por AIS (es obligatorio).
+[aisstream.io](https://aisstream.io) da esos datos gratis por WebSocket (`wss://stream.aisstream.io/v0/stream`):
+se conecta, se manda en menos de 3 segundos una suscripción con la clave y los rectángulos, y llegan las posiciones.
+La clave **nunca** puede ir en la web pública: los datos se reciben en un servidor propio (hoy, GitHub Actions)
+y se guardan; la web solo mostraría lo guardado.
+
+**Ferris (MMSI):** Pionero `725001968`, Kawéskar `725003001`, Fueguino `725000877`.
+Faltan Patagonia, Kénos, Crux Australis, Pathagon (TABSA) y Kataik, Tanu (Naviera Tierra del Fuego):
+el reporte avisa cuando ve un barco con esos nombres para agregarlo a `FERRIES` en `ais/barcos.py`.
+
+**Zonas** (`[[lat_sur, lon_oeste], [lat_norte, lon_este]]`): Primera Angostura `[[-52.65, -69.85], [-52.35, -69.30]]`,
+Punta Arenas–Porvenir `[[-53.40, -70.95], [-53.05, -70.30]]`.
+
+**Riesgo principal: la cobertura.** En la zona hay pocos receptores AIS en tierra y la cobertura de
+aisstream depende de voluntarios: puede haber horas enteras sin datos. Por eso primero medimos 1–2 semanas.
+**Plan B:** instalar una antena AIS propia (receptor tipo RTL-SDR + antena VHF + una Raspberry Pi,
+unos 100 USD) en Punta Delgada o Bahía Azul, con alguien que preste corriente e internet. Se puede
+compartir con aisstream/AISHub, lo que además mejora la cobertura para todos.
+
+**Cómo se mide** (`python -m ais.reporte`):
+- *% de horas con dato* por barco, sobre las horas en que **estuvimos escuchando** (una hora cuenta si escuchamos ≥ 5 min).
+- *Hueco más largo*: el mayor tiempo escuchando sin recibir nada de ese barco.
+- *Cruces detectados*: el barco aparece en una orilla y después en la otra (pasa de < 20 % a > 80 % del camino
+  entre terminales) en menos de 1,5 h (Primera Angostura) o 4 h (Punta Arenas–Porvenir). Funciona aunque
+  falten posiciones en el medio. Las terminales de `ais/barcos.py` son aproximadas: el reporte muestra
+  los "muelles observados" (donde los ferris se quedan quietos) para corregirlas.
+- Además genera un mapa HTML con los recorridos (`.cache/ais_mapa.html`, fuera del repo).
+
+**Cómo se juntan los datos:** el workflow `ais` (`.github/workflows/ais.yml`, separado de `collect`)
+escucha 10 minutos cada 30 minutos y guarda todo en la **rama `datos-ais`** (nunca en `main`).
+~11 min de Actions por corrida, ~16.000 min/mes: **gratis solo porque el repo es público**. Para activarlo:
+1. Sacar la clave gratis en aisstream.io (entrar con GitHub; no pide tarjeta).
+2. Cargarla en GitHub → Settings → Secrets and variables → Actions → *New repository secret* `AISSTREAM_API_KEY`.
+3. Pasar `ais.yml` a `main` (GitHub solo programa workflows que están en `main`).
+
+Probarlo en la compu (escucha 2 minutos y guarda en `data/ais/`; esa carpeta local **no se commitea**
+en `main`: los datos de verdad van a la rama `datos-ais`):
+```
+set AISSTREAM_API_KEY=tu-clave        (PowerShell: $env:AISSTREAM_API_KEY="tu-clave")
+python -m ais.sondeo --minutos 2
+python -m ais.reporte
+```
+Ver lo juntado por GitHub:
+```
+git fetch origin datos-ais
+git worktree add ../corredor-ais-datos origin/datos-ais
+python -m ais.reporte --datos ../corredor-ais-datos/data/ais
+```
+
+**Datos** (rama `datos-ais`, carpeta `data/ais/`; solo se agregan filas, hora en UTC):
+
+| Archivo | Columnas |
+|---|---|
+| `posiciones/AAAA-MM.csv` | `ts_utc` (hora del mensaje), `mmsi`, `nombre`, `lat`, `lon`, `sog_kn` (velocidad, nudos), `cog_deg` (rumbo sobre el fondo), `rumbo_deg` (proa), `estado_nav` (código AIS), `tipo_msg`, `zona`. Como mucho una fila por barco por minuto |
+| `barcos.csv` | `ts_utc`, `mmsi`, `nombre`, `tipo` (60–69 = pasajeros), `callsign`, `imo`, `destino`. Una fila por barco y sesión |
+| `sesiones.csv` | `inicio_utc`, `fin_utc`, `mensajes`, `posiciones`, `error`. Cuándo escuchamos: sin esto no se puede medir la cobertura |
+
+**Para el modelo (más adelante):** si un ferry cruza, AIS lo muestra; es una **etiqueta objetiva de
+"¿cruzaba o no?"** que no depende de que TABSA actualice su página, y además mide demoras reales.
+**Todavía NO está conectada al entrenamiento:** lo decidimos después de ver cuántos datos llegan.
+
 ## Pruebas
 
 ```
