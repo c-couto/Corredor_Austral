@@ -15,6 +15,7 @@ import json
 import os
 import socket
 import sys
+import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -36,12 +37,23 @@ class ClaveInvalida(Exception):
     pass
 
 
-def subscription(key: str) -> dict:
+def subscription(key: str, zonas: dict | None = None) -> dict:
     return {
         "APIKey": key,
-        "BoundingBoxes": [[list(sw), list(ne)] for sw, ne in barcos.ZONAS.values()],
+        "BoundingBoxes": [[list(sw), list(ne)] for sw, ne in (zonas or barcos.ZONAS).values()],
         "FilterMessageTypes": TIPOS,
     }
+
+
+def tipo_de(raw: bytes | str) -> str:
+    """Tipo de mensaje de aisstream (para el diagnóstico de lo que llega)."""
+    try:
+        msg = json.loads(raw)
+    except (ValueError, UnicodeDecodeError):
+        return "(no es JSON)"
+    if not isinstance(msg, dict):
+        return "(JSON raro)"
+    return "error" if "error" in msg else str(msg.get("MessageType") or "(sin tipo)")
 
 
 def _ts(meta_time: Any, fallback: datetime) -> str:
@@ -116,11 +128,15 @@ def _safe(text: str, key: str) -> str:
 
 def run(minutes: float, key: str, base: Path, *, connect: Callable = ws.connect,
         clock: Callable[[], float] = time.time, sleep: Callable[[float], None] = time.sleep,
-        log: Callable[[str], None] = print) -> dict:
-    """Escucha `minutes` minutos (reconectando si se corta) y guarda todo en `base`."""
+        log: Callable[[str], None] = print, zonas: dict | None = None) -> dict:
+    """Escucha `minutes` minutos (reconectando si se corta) y guarda todo en `base`.
+
+    `stats["tipos"]` cuenta qué tipos de mensaje llegaron (no se guarda en el CSV:
+    sesiones.csv mantiene sus columnas; se muestra en el log de la corrida).
+    """
     start = datetime.now(timezone.utc)
     deadline = clock() + minutes * 60
-    stats = {"mensajes": 0, "posiciones": 0, "error": ""}
+    stats: dict[str, Any] = {"mensajes": 0, "posiciones": 0, "error": "", "tipos": {}}
     pending_pos: list[dict] = []
     pending_static: list[dict] = []
     last_saved: dict[int, float] = {}
@@ -138,7 +154,7 @@ def run(minutes: float, key: str, base: Path, *, connect: Callable = ws.connect,
             conn = None
             try:
                 conn = connect(URL, timeout=10)  # si no llega nada en 10 s, recv() avisa con timeout
-                conn.send_text(json.dumps(subscription(key)))  # dentro de los 3 s de conectar
+                conn.send_text(json.dumps(subscription(key, zonas)))  # dentro de los 3 s de conectar
                 while clock() < deadline:
                     if clock() - last_flush >= GUARDAR_CADA_S:
                         flush()
@@ -147,6 +163,8 @@ def run(minutes: float, key: str, base: Path, *, connect: Callable = ws.connect,
                     except socket.timeout:
                         continue
                     stats["mensajes"] += 1
+                    tipo = tipo_de(raw)
+                    stats["tipos"][tipo] = stats["tipos"].get(tipo, 0) + 1
                     parsed = parse_message(raw)
                     if parsed is None:
                         continue
@@ -182,19 +200,55 @@ def run(minutes: float, key: str, base: Path, *, connect: Callable = ws.connect,
     return stats
 
 
+def _tipos_txt(tipos: dict) -> str:
+    return ", ".join(f"{t} {n}" for t, n in sorted(tipos.items(), key=lambda kv: -kv[1])) or "ninguno"
+
+
+def control(key: str, minutes: float = 2, **kwargs) -> dict:
+    """Prueba de control: escucha en zonas con mucho tráfico y NO guarda nada en data/.
+
+    Devuelve {"stats": ..., "por_zona": {zona: (posiciones, barcos distintos)}}.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        base = Path(tmp)
+        stats = run(minutes, key, base, zonas=barcos.ZONAS_CONTROL, **kwargs)
+        por_zona = {}
+        filas = datos.read_posiciones(base)
+        for zona, ((s, w), (n, e)) in barcos.ZONAS_CONTROL.items():
+            en = [r for r in filas if s <= float(r["lat"]) <= n and w <= float(r["lon"]) <= e]
+            por_zona[zona] = (len(en), len({r["mmsi"] for r in en}))
+    return {"stats": stats, "por_zona": por_zona}
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="python -m ais.sondeo", description=__doc__.splitlines()[0])
-    p.add_argument("--minutos", type=float, default=10, help="cuánto escuchar (por defecto 10)")
+    p.add_argument("--minutos", type=float, default=None, help="cuánto escuchar (por defecto 10; 2 con --control)")
     p.add_argument("--datos", help="carpeta de datos (por defecto data/ais/)")
+    p.add_argument("--control", action="store_true",
+                   help="prueba de control en zonas con mucho tráfico (no guarda nada)")
     args = p.parse_args(argv)
     key = os.environ.get("AISSTREAM_API_KEY", "").strip()
     if not key:
         print("Falta la variable de entorno AISSTREAM_API_KEY (clave gratis de aisstream.io).", file=sys.stderr)
         return 2
+    if args.control:
+        res = control(key, args.minutos or 2)
+        stats = res["stats"]
+        print(f"PRUEBA DE CONTROL ({args.minutos or 2:g} min, no se guarda nada)")
+        print(f"Mensajes recibidos: {stats['mensajes']} · tipos: {_tipos_txt(stats['tipos'])}")
+        for zona, (n_pos, n_barcos) in res["por_zona"].items():
+            print(f"  {zona}: {n_pos} posiciones de {n_barcos} barcos distintos")
+        if stats["error"]:
+            print(f"Último error: {stats['error']}")
+        ok = any(n for n, _ in res["por_zona"].values())
+        print("RESULTADO: la clave y el código reciben datos. Si el Estrecho no da nada, es falta de cobertura."
+              if ok else "RESULTADO: no llegó ninguna posición ni en zonas con mucho tráfico: revisar clave/código.")
+        return 0 if ok else 1
     base = datos.base_dir(args.datos)
-    stats = run(args.minutos, key, base)
+    stats = run(args.minutos or 10, key, base)
     print(f"Mensajes recibidos: {stats['mensajes']} · posiciones guardadas: {stats['posiciones']}"
           f"{' · último error: ' + stats['error'] if stats['error'] else ''}")
+    print(f"Tipos de mensaje: {_tipos_txt(stats['tipos'])}")
     return 1 if stats["error"].startswith("aisstream rechazó") else 0
 
 

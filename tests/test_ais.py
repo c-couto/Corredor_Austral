@@ -232,6 +232,29 @@ class SondeoTest(TempDataDir):
         self.assertTrue(stats["error"].startswith("aisstream rechazó"))
         self.assertEqual(len(conns), 1)  # no insiste
 
+    def test_cuenta_los_tipos_de_mensaje(self):
+        stats, _, _ = self.correr([mensaje_posicion(PIONERO, T0, -52.48, -69.56), b"basura",
+                                   json.dumps({"MessageType": "AidsToNavigationReport"}).encode()])
+        self.assertEqual(stats["tipos"], {"PositionReport": 1, "(no es JSON)": 1, "AidsToNavigationReport": 1})
+        self.assertEqual(datos.read(self.base() / "sesiones.csv")[0].keys(), set(datos.SESIONES))  # mismas columnas
+
+    def test_prueba_de_control_no_guarda_nada(self):
+        clock = FakeClock()
+        conns = []
+
+        def connect(url, timeout):
+            conns.append(FakeConn([mensaje_posicion(244000001, T0, 51.95, 4.10, nombre="RTM"),
+                                   mensaje_posicion(244000002, T0, 51.96, 4.20, nombre="RTM2"),
+                                   mensaje_posicion(725000001, T0, -33.02, -71.62, nombre="VALPO")], clock))
+            return conns[-1]
+
+        res = sondeo.control(KEY, 2, connect=connect, clock=clock, sleep=lambda s: None, log=lambda s: None)
+        self.assertEqual(res["por_zona"], {"valparaiso": (1, 1), "rotterdam": (2, 2)})
+        sub = json.loads(conns[0].enviados[0])
+        self.assertEqual(len(sub["BoundingBoxes"]), 2)
+        self.assertEqual(sub["BoundingBoxes"][1], [[51.85, 3.90], [52.05, 4.50]])
+        self.assertFalse(self.data_dir.exists())  # nada en data/
+
     def test_sin_clave_no_se_conecta(self):
         with mock.patch.dict(os.environ, {}, clear=True), mock.patch.object(ws, "connect") as c, \
                 mock.patch("sys.stderr"):

@@ -26,6 +26,10 @@ on:
       minutos:
         description: "Minutos de escucha"
         default: "10"
+      control:
+        description: "Prueba de control: 2 min en Valparaíso y Rotterdam (no guarda nada)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -42,7 +46,16 @@ jobs:
       - name: Descargar el código
         uses: actions/checkout@v4
 
+      # Solo a mano, con la casilla "control": comprueba que la clave y el código reciben datos
+      # en zonas con mucho tráfico. No toca la rama datos-ais.
+      - name: Prueba de control
+        if: ${{ inputs.control }}
+        env:
+          AISSTREAM_API_KEY: ${{ secrets.AISSTREAM_API_KEY }}
+        run: python3 -m ais.sondeo --control
+
       - name: Preparar la rama de datos (datos-ais)
+        if: ${{ !inputs.control }}
         run: |
           if git ls-remote --exit-code --heads origin datos-ais >/dev/null; then
             git fetch --depth=1 origin datos-ais
@@ -54,6 +67,7 @@ jobs:
           fi
 
       - name: Escuchar aisstream
+        if: ${{ !inputs.control }}
         env:
           AISSTREAM_API_KEY: ${{ secrets.AISSTREAM_API_KEY }}
           MINUTOS: ${{ inputs.minutos || '10' }}
@@ -61,7 +75,7 @@ jobs:
 
       # Aunque la escucha falle, se guarda lo que se juntó (y la sesión con su error).
       - name: Guardar en la rama datos-ais
-        if: always()
+        if: ${{ always() && !inputs.control }}
         working-directory: _ais
         run: |
           git config user.name "corredor-bot"
