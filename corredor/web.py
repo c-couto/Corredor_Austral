@@ -366,6 +366,8 @@ def _method(snap: Snapshot) -> str:
   Se reentrena todos los días y solo reemplaza a la regla base si demuestra predecir mejor.</p>
   <ul class="method">{"".join(rows)}</ul>
   <p class="muted small">Normal: menos de 20 % · Puede suspenderse: desde 20 % · Probable suspensión: desde 50 %.</p>
+  <p class="small"><b>Predicciones experimentales:</b> el modelo todavía tiene pocas semanas de datos y puede
+  equivocarse. No reemplaza al estado oficial de TABSA.</p>
 </section>"""
 
 
@@ -492,6 +494,7 @@ th{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.
 .btn{display:inline-block;padding:10px 14px;border-radius:12px;background:var(--card);border:1px solid var(--line);color:var(--fg);text-decoration:none;font-weight:650}
 .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}.btn.wa{background:#25d366;border-color:#25d366;color:#06301a}
 footer{margin:24px 0 8px;font-size:.78rem;color:var(--muted)}a{color:var(--brand)}
+.proto{background:#ffd23f;color:#3a2a00;text-align:center;font-size:.8rem;line-height:1.35;padding:7px 16px}
 """
 
 JS = """
@@ -544,6 +547,8 @@ def render(snap: Snapshot, now: datetime | None = None) -> str:
 <style>{CSS}</style>
 </head>
 <body>
+<div class="proto" role="note"><b>Prototipo – versión preliminar.</b> Las predicciones son experimentales:
+  confirmá siempre con TABSA antes de viajar.</div>
 {_hero(snap)}
 <main>
 <div class="wrap">

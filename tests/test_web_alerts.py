@@ -185,6 +185,11 @@ class WebTest(TempDataDir):
     def test_pagina_sin_datos(self):
         self.assertIn("Sin datos todavía", self.page())
 
+    def test_avisa_que_es_un_prototipo(self):
+        html = self.page()
+        self.assertIn("Prototipo – versión preliminar", html)
+        self.assertIn("Predicciones experimentales", html)
+
     def test_textos_externos_se_escapan(self):
         add_run(NOW - timedelta(minutes=5), {"punta_delgada": 30}, "<script>x</script>")
         html = self.page()

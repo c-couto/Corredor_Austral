@@ -1,0 +1,55 @@
+# Publica la web (prototipo) en GitHub Pages.
+#
+# - Corre sola cada vez que termina bien el workflow "collect" (datos nuevos),
+#   y también se puede correr a mano desde la pestaña Actions.
+# - NO hace commits: genera _site/index.html y lo sube como "artifact" de Pages.
+# - No toca collect.yml ni comparte su grupo de concurrencia: si esto falla,
+#   la recolección sigue igual.
+# - Repo público: los minutos de Actions son gratis.
+name: pages
+
+on:
+  workflow_run:
+    workflows: ["collect"]
+    types: [completed]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    env:
+      CORREDOR_MET_CONTACT: ${{ vars.CORREDOR_MET_CONTACT }}
+      CORREDOR_SITE_URL: ${{ vars.CORREDOR_SITE_URL }}
+      CORREDOR_TELEGRAM_URL: ${{ vars.CORREDOR_TELEGRAM_URL }}
+      CORREDOR_CONTACT_URL: ${{ vars.CORREDOR_CONTACT_URL }}
+    steps:
+      - name: Descargar el repositorio (último commit de main, con los datos nuevos)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Generar la web
+        run: python3 -m corredor web --out _site
+
+      - name: Subir la web
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Publicar en GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
