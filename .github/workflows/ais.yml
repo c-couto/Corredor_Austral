@@ -1,0 +1,79 @@
+# Mapa en vivo (premium), etapa 1: medir la cobertura AIS de los ferris.
+#
+# Cada 30 min escucha aisstream.io durante 10 minutos y guarda las posiciones.
+#
+# Separado de todo lo demás a propósito:
+#   - NO toca collect.yml ni comparte su grupo de concurrencia.
+#   - NO hace commits a main: los datos van a la rama aparte "datos-ais"
+#     (se crea sola la primera vez). Así nunca choca con el bot de collect
+#     ni con los datos del modelo.
+#
+# Requisitos:
+#   - Secret AISSTREAM_API_KEY (clave gratis de aisstream.io).
+#   - GitHub solo corre los workflows programados que están en main: hasta que
+#     este archivo llegue a main, no corre solo.
+#
+# Minutos: ~11 por corrida (10 escuchando + 1 de preparación) x 48 por día
+# = ~530 min/día (~16.000 min/mes). Gratis mientras el repo sea PÚBLICO.
+# Si el repo pasa a privado, apagar este workflow (se pasaría del límite gratis).
+name: ais
+
+on:
+  schedule:
+    - cron: "15,45 * * * *"   # lejos de collect (:01/:31 y :07/:37)
+  workflow_dispatch:
+    inputs:
+      minutos:
+        description: "Minutos de escucha"
+        default: "10"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ais
+  cancel-in-progress: false
+
+jobs:
+  sondeo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Preparar la rama de datos (datos-ais)
+        run: |
+          if git ls-remote --exit-code --heads origin datos-ais >/dev/null; then
+            git fetch --depth=1 origin datos-ais
+            git worktree add -B datos-ais _ais FETCH_HEAD
+          else
+            echo "La rama datos-ais no existe: se crea vacía"
+            git worktree add --detach _ais
+            git -C _ais switch --orphan datos-ais
+          fi
+
+      - name: Escuchar aisstream
+        env:
+          AISSTREAM_API_KEY: ${{ secrets.AISSTREAM_API_KEY }}
+          MINUTOS: ${{ inputs.minutos || '10' }}
+        run: python3 -m ais.sondeo --minutos "$MINUTOS" --datos _ais/data/ais
+
+      # Aunque la escucha falle, se guarda lo que se juntó (y la sesión con su error).
+      - name: Guardar en la rama datos-ais
+        if: always()
+        working-directory: _ais
+        run: |
+          git config user.name "corredor-bot"
+          git config user.email "corredor-bot@users.noreply.github.com"
+          git add data/ais 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "Sin cambios"
+            exit 0
+          fi
+          git commit -m "ais $(date -u +%Y-%m-%dT%H:%MZ)"
+          for i in 1 2 3; do
+            git push origin HEAD:datos-ais && exit 0
+            git pull --rebase origin datos-ais
+          done
+          exit 1
