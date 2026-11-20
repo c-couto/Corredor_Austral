@@ -406,9 +406,9 @@ CSS = """
 :root{--bg:#eef3f7;--card:#fff;--fg:#0f1d2b;--muted:#5b6b7b;--line:#dbe3ea;--brand:#0b4f79;--brand2:#14a3b8;
 --ok:#14915a;--ok-bg:#d9f6e7;--mid:#c27400;--mid-bg:#ffefcf;--hi:#d62839;--hi-bg:#ffe1e3;--nd:#7b8794;--nd-bg:#e8edf2;
 --shadow:0 1px 2px rgba(15,29,43,.06),0 8px 24px rgba(15,29,43,.06)}
-@media (prefers-color-scheme:dark){:root{--bg:#07121c;--card:#0f1e2b;--fg:#e7eef5;--muted:#93a4b5;--line:#1f3344;
+:root{color-scheme:dark;--bg:#07121c;--card:#0f1e2b;--fg:#e7eef5;--muted:#93a4b5;--line:#1f3344;
 --brand:#5cc8ff;--brand2:#2fd0c6;--ok:#3ddc97;--ok-bg:#0d2c21;--mid:#f5b13d;--mid-bg:#33260b;--hi:#ff6b78;--hi-bg:#3a1418;
---nd:#8a99a8;--nd-bg:#1a2a38;--shadow:none}}
+--nd:#8a99a8;--nd-bg:#1a2a38;--shadow:none}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
 body{margin:0;overflow-x:hidden;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 main{max-width:720px;margin:0 auto;padding:0 16px 24px}
@@ -541,7 +541,8 @@ def render(snap: Snapshot, now: datetime | None = None) -> str:
 <meta http-equiv="refresh" content="900">
 <title>Corredor Austral</title>
 <meta name="description" content="¿Cruza o no cruza? Estado oficial y probabilidad de suspensión de los cruces del Estrecho de Magallanes: Primera Angostura, Punta Arenas–Porvenir y Río Verde.">
-<meta name="theme-color" content="#0b3d63">
+<meta name="theme-color" content="#07121c">
+<meta name="color-scheme" content="dark">
 <meta property="og:title" content="Corredor Austral · el semáforo del Estrecho">
 <meta property="og:description" content="Estado oficial, probabilidad de suspensión por viento y la mejor hora para salir.">
 <style>{CSS}</style>
