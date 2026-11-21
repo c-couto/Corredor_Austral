@@ -16,7 +16,7 @@ export const naviera = (n) => NAVIERAS[n] || NAVIERAS.TABSA;
 // así se ven igual de lejos o de cerca, y no quedan tapadas por el ícono del barco.
 const ESTELA_PX = 170;      // largo de la estela detrás del barco
 const PASO_PX = 3;          // cada cuántos píxeles se guarda un punto
-const POPA_PX = 15;         // dónde empieza la "V" de espuma (detrás del centro del ícono)
+const POPA_PX = 21;         // dónde empieza la "V" de espuma (la popa, detrás del centro del ícono)
 const metrosPorPixel = (lat, zoom) => (78271.517 * Math.cos((lat * Math.PI) / 180)) / 2 ** zoom;
 const APAGADO_MS = 1500;    // al llegar a la rampa, la estela se apaga en 1,5 s
 const VACIO = { type: "FeatureCollection", features: [] };
@@ -58,6 +58,7 @@ function crearOlas() {
   const sen = (x) => SIN[((x % TABLA) + TABLA) % TABLA | 0];
   const P1 = new Float32Array(N * N);
   const P2 = new Float32Array(N * N);
+  const P3 = new Float32Array(N * N); // perpendicular: corta las crestas en ondas cortas
 
   const img = {
     width: N, height: N, data: new Uint8ClampedArray(N * N * 4),
@@ -68,9 +69,11 @@ function crearOlas() {
       let k1 = [Math.round(3 * sx), Math.round(3 * sy)];
       if (!k1[0] && !k1[1]) k1 = [3, 0];
       const k2 = [2 * k1[0] + Math.sign(-k1[1]), 2 * k1[1] + Math.sign(k1[0])];
+      const k3 = [-2 * k1[1], 2 * k1[0]];
       for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
         P1[y * N + x] = ((k1[0] * x + k1[1] * y) / N) * TABLA;
         P2[y * N + x] = ((k2[0] * x + k2[1] * y) / N) * TABLA;
+        P3[y * N + x] = ((k3[0] * x + k3[1] * y) / N) * TABLA;
       }
       this.pendiente = true;
     },
@@ -79,12 +82,13 @@ function crearOlas() {
       if (!this.pendiente) return false;
       this.pendiente = false;
       const d = this.data;
-      const o1 = this.t * 0.22 * TABLA, o2 = this.t * 0.15 * TABLA;
+      const o1 = this.t * 0.22 * TABLA, o2 = this.t * 0.15 * TABLA, o3 = this.t * 0.05 * TABLA;
       for (let i = 0, j = 0; i < N * N; i++, j += 4) {
-        const v = sen(P1[i] - o1 + 60 * sen(P2[i] - o2));
-        let c = (v - 0.55) / 0.45;
+        const v = sen(P1[i] - o1 + 90 * sen(P2[i] - o2));
+        let c = (v - 0.6) / 0.4;
         c = c > 0 ? c * c * (3 - 2 * c) : 0;
-        d[j] = 170; d[j + 1] = 212; d[j + 2] = 245; d[j + 3] = c * 15; // sutil: como mucho 6 % de opacidad
+        const m = 0.5 + 0.5 * sen(P3[i] - o3 + 120 * sen(P2[i]));    // tramos: ondas cortas, no rayas
+        d[j] = 170; d[j + 1] = 212; d[j + 2] = 245; d[j + 3] = c * m * m * 22; // sutil: ≤ 9 % de opacidad
       }
       return true;
     },
@@ -95,19 +99,44 @@ function crearOlas() {
 
 // ------------------------------------------------------------------ ícono del ferry
 
+// Barcaza de rampa vista desde arriba (proa arriba): rampa de proa, cubierta con vehículos,
+// grúa amarilla y puente blanco a popa. La borda va con el color de la naviera.
+const BARCAZA_SVG = `
+<svg class="casco" viewBox="0 0 26 66" aria-hidden="true">
+  <g class="rampa">
+    <path d="M5.5 1.5h15l-1.2 8h-12.6z" fill="#9AA7B4" stroke="#0A1826" stroke-width=".8"/>
+    <path d="M7.5 3.6h11M7.8 5.6h10.4M8.1 7.6h9.8" stroke="#6E7B88" stroke-width=".6"/>
+  </g>
+  <path d="M3.2 8.5h19.6a2 2 0 0 1 2 2v49a4 4 0 0 1-4 4H5.2a4 4 0 0 1-4-4v-49a2 2 0 0 1 2-2z" fill="var(--c)" stroke="#0A1826" stroke-width="1"/>
+  <rect x="3.6" y="10.4" width="18.8" height="33" rx="1" fill="#AEB9C4"/>
+  <path d="M13 12v30" stroke="#E8C547" stroke-width=".5" stroke-dasharray="2 1.6"/>
+  <rect x="5" y="12" width="6.4" height="14" rx=".9" fill="#E9EEF3"/><rect x="5" y="12" width="6.4" height="3.2" rx=".9" fill="#5B6B7B"/>
+  <rect x="14.6" y="12.6" width="6" height="8" rx="1.6" fill="#C8453F"/><rect x="15.4" y="14.6" width="4.4" height="2.4" rx=".6" fill="#2A3744"/>
+  <rect x="14.6" y="22.6" width="6" height="8" rx="1.6" fill="#3F7FC4"/><rect x="15.4" y="24.6" width="4.4" height="2.4" rx=".6" fill="#2A3744"/>
+  <rect x="5" y="28.6" width="6.4" height="8" rx="1.6" fill="#F1F3F5"/><rect x="5.8" y="30.6" width="4.8" height="2.4" rx=".6" fill="#2A3744"/>
+  <path d="M21.6 41v-8.5h-5.8" stroke="#F2C230" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <circle cx="21.6" cy="41" r="1.3" fill="#F2C230"/>
+  <rect x="4.6" y="45" width="16.8" height="13.6" rx="1.8" fill="#F3F6F9" stroke="#0A1826" stroke-width=".6"/>
+  <rect x="6.6" y="46.6" width="12.8" height="6.4" rx="1" fill="#D9E1E8"/>
+  <rect x="6.6" y="45.6" width="12.8" height="1.5" rx=".5" fill="#1E2C3A"/>
+  <circle cx="13" cy="50" r="1" fill="#1E2C3A"/><path d="M13 50v-3" stroke="#1E2C3A" stroke-width=".5"/>
+  <rect x="8" y="60" width="10" height="2.4" rx="1.2" fill="#E8EDF2"/>
+</svg>`;
+
 function elementoFerry(reg, onClick) {
   const el = document.createElement("button");
   el.type = "button";
   el.className = "ferry";
   el.style.setProperty("--c", naviera(reg.naviera).color);
   el.setAttribute("aria-label", `Ferry ${reg.nombre}`);
-  el.innerHTML =
-    '<span class="anillo" aria-hidden="true"></span>' +
-    '<svg viewBox="0 0 20 36" aria-hidden="true"><path d="M10 1C14.5 5 16 10 16 15v18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V15c0-5 1.5-10 6-14z" ' +
-    'fill="var(--c)" stroke="#0A1826" stroke-width="1.4"/><rect x="7" y="15" width="6" height="13" rx="1.5" fill="rgba(10,24,38,.35)"/></svg>';
+  el.innerHTML = '<span class="anillo" aria-hidden="true"></span>' + BARCAZA_SVG;
   el.addEventListener("click", (e) => { e.stopPropagation(); onClick(reg.mmsi); });
   return el;
 }
+
+// Largo real aproximado de una barcaza del cruce: de cerca, el ícono crece hasta su tamaño real.
+const LARGO_M = 70;
+const ICONO_PX = 46; // alto del ícono a tamaño normal
 
 // ------------------------------------------------------------------ mapa
 
@@ -165,8 +194,8 @@ export function crearMapa(contenedor, ruta, { reducido = false, onSeleccion = ()
       paint: { "text-color": "#EAF1F7", "text-halo-color": "#0A1826", "text-halo-width": 1.6 } });
 
     map.addSource("etiquetas", { type: "geojson", data: { type: "FeatureCollection", features: [
-      { type: "Feature", properties: { t: "Primera Angostura", k: "agua" }, geometry: { type: "Point", coordinates: [-69.572, -52.479] } },
-      { type: "Feature", properties: { t: "TIERRA DEL FUEGO", k: "tierra" }, geometry: { type: "Point", coordinates: [-69.556, -52.509] } },
+      { type: "Feature", properties: { t: "Primera Angostura", k: "agua" }, geometry: { type: "Point", coordinates: [-69.558, -52.4775] } },
+      { type: "Feature", properties: { t: "TIERRA DEL FUEGO", k: "tierra" }, geometry: { type: "Point", coordinates: [-69.546, -52.5035] } },
     ] } });
     map.addLayer({ id: "etiquetas", type: "symbol", source: "etiquetas",
       layout: { "text-field": ["get", "t"], "text-font": ["match", ["get", "k"], "agua", ["literal", ["Noto Sans Italic"]], ["literal", ["Noto Sans Regular"]]],
@@ -198,6 +227,12 @@ export function crearMapa(contenedor, ruta, { reducido = false, onSeleccion = ()
     return f;
   }
 
+  /** Cuánto agrandar el ícono para que, de cerca, tenga el largo real del barco. */
+  function escala(lat) {
+    const px = LARGO_M / metrosPorPixel(lat, map.getZoom());
+    return Math.round(Math.max(1, px / ICONO_PX) * 20) / 20;
+  }
+
   function opacidadEstela(id, f, op) {
     if (f.opacidad === op) return;
     f.opacidad = op;
@@ -217,6 +252,10 @@ export function crearMapa(contenedor, ruta, { reducido = false, onSeleccion = ()
         const f = ferris.get(r.mmsi) || agregarFerry(r);
         f.marker.setLngLat([r.lon, r.lat]);
         f.marker.setRotation(r.rumbo || 0);
+        const atracado = (r.velocidad_nudos || 0) < 0.5;
+        if (f.atracado !== atracado) { f.atracado = atracado; f.el.classList.toggle("atracado", atracado); }
+        const esc = escala(r.lat);
+        if (f.esc !== esc) { f.esc = esc; f.el.style.setProperty("--esc", esc); }
       }
     },
 
@@ -241,10 +280,12 @@ export function crearMapa(contenedor, ruta, { reducido = false, onSeleccion = ()
             largo += distancia(f.estela[i], f.estela[i - 1]);
             if (largo > ESTELA_PX * mpp) { f.estela = f.estela.slice(i - 1); break; }
           }
-          // "V" de espuma detrás del barco
-          const popa = mover(p, r.rumbo + 180, POPA_PX * mpp);
-          const brazo = (16 + v * 1.6) * mpp;
-          const o = Math.min(1, v / 8) * 0.9;
+          // "V" de espuma detrás del barco (solo navegando de proa, no en marcha atrás)
+          const esc = f.esc || 1;
+          const popa = mover(p, r.rumbo + 180, POPA_PX * esc * mpp);
+          const brazo = (16 + v * 1.6) * esc * mpp;
+          const atras = r.curso != null && Math.abs(((r.curso - r.rumbo + 540) % 360) - 180) > 90; // marcha atrás
+          const o = atras ? 0 : Math.min(1, v / 8) * 0.9;
           for (const lado of [-1, 1]) {
             espuma.push({ type: "Feature", properties: { o },
               geometry: { type: "LineString", coordinates: [popa, mover(popa, r.rumbo + 180 + lado * 22, brazo)] } });

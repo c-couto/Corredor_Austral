@@ -5,9 +5,11 @@
 //   ?premium=0      muestra la pantalla de invitación (solo visual, no hay pagos)
 //   ?velocidad=20   simulación 20 veces más rápida (para la demo)
 //   ?ferry=MMSI     abre con ese ferry seleccionado
+//   ?hora=HH:MM     arranca la simulación a esa hora local de hoy (p. ej. para ver
+//                   ferris cruzando de noche, cuando con el horario real están en rampa)
 
 import { Ruta } from "./ruta.js";
-import { crearFuenteSimulada } from "./fuente-simulada.js";
+import { crearFuenteSimulada, hoyALas } from "./fuente-simulada.js";
 import { crearMapa, naviera } from "./mapa.js";
 import { situacion, cardinal } from "./situacion.js";
 import { estadoTabsa, vientoPuntaDelgada } from "./estado.js";
@@ -50,13 +52,15 @@ async function cargarEstado() {
     caja.dataset.tipo = "ok";
     txt.innerHTML = "";
     txt.append("Cruce habilitado · ", Object.assign(document.createElement("em"), { textContent: "dato de ejemplo" }));
-    return;
+    return { suspendido: false };
   }
   const normal = e.status.toUpperCase() === "NORMAL";
   const suspendido = /SUSP/i.test(e.status);
   caja.dataset.tipo = normal ? "ok" : suspendido ? "mal" : "medio";
   const titulo = normal ? "Cruce habilitado" : suspendido ? "Cruce suspendido" : `Cruce: ${e.status.toLowerCase()}`;
   txt.textContent = `${titulo} · Fuente: TABSA · ${haceTexto(Date.now() - e.ts)}`;
+  // Si TABSA no informa NORMAL, los ferris simulados se quedan en rampa (no salen).
+  return { suspendido: !normal };
 }
 
 // ------------------------------------------------------------------ lista de ferris
@@ -85,10 +89,10 @@ function crearFila(reg, alTocar) {
   return li;
 }
 
-function actualizarLista(regs, ruta, ahoraSim, factor, seleccionado, alTocar) {
+function actualizarLista(regs, ruta, ahoraSim, factor, seleccionado, alTocar, suspendido) {
   for (const r of regs) {
     const li = filas.get(r.mmsi) || crearFila(r, alTocar);
-    const s = situacion(r, ruta, ahoraSim);
+    const s = situacion(r, ruta, ahoraSim, { suspendido });
     li.querySelector(".que").textContent = `${r.naviera} · ${s.texto}`;
     li.querySelector(".eta").textContent = s.eta || "";
     li.dataset.fase = s.fase;
@@ -128,7 +132,11 @@ async function iniciar() {
 
   const datos = await (await fetch("datos/cruce-primera-angostura.json")).json();
   const ruta = new Ruta(datos);
-  const fuente = crearFuenteSimulada(ruta, { velocidad: Number(params.get("velocidad")) || 1 });
+  const hora = /^\d{1,2}:\d{2}$/.test(params.get("hora") || "") ? params.get("hora") : null;
+  const fuente = crearFuenteSimulada(ruta, {
+    velocidad: Number(params.get("velocidad")) || 1,
+    inicio: hora ? hoyALas(hora) : null,
+  });
 
   let seleccionado = null;
   const seleccionar = (mmsi) => {
@@ -148,12 +156,17 @@ async function iniciar() {
   pintarVel();
 
   let regs = fuente.leer();
-  const refrescarLista = () => actualizarLista(regs, ruta, fuente.ahora(), fuente.velocidad, seleccionado, seleccionar);
+  const refrescarLista = () =>
+    actualizarLista(regs, ruta, fuente.ahora(), fuente.velocidad, seleccionado, seleccionar, fuente.suspendido);
   const inicial = Number(params.get("ferry")); // ?ferry=MMSI abre la pantalla con ese ferry seleccionado
   if (inicial) mapa.map.once("load", () => requestAnimationFrame(() => seleccionar(inicial)));
 
-  cargarEstado();
-  setInterval(cargarEstado, 5 * 60 * 1000);
+  const aplicarEstado = async () => {
+    const { suspendido } = await cargarEstado();
+    fuente.suspendido = suspendido;
+  };
+  aplicarEstado();
+  setInterval(aplicarEstado, 5 * 60 * 1000);
   vientoPuntaDelgada().then((v) => { if (v && !Number.isNaN(v.desde_deg)) mapa.viento(v.desde_deg); });
 
   const inicio = performance.now();
