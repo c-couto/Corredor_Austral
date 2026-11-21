@@ -26,6 +26,13 @@ ZONAS: dict[str, tuple[tuple[float, float], tuple[float, float]]] = {
     "punta_arenas_porvenir": ((-53.40, -70.95), (-53.05, -70.30)),
 }
 
+# Prueba de control: zonas con mucho tráfico para comprobar que la clave y el código reciben
+# datos (si acá llegan posiciones y en el Estrecho no, el problema es la cobertura).
+ZONAS_CONTROL: dict[str, tuple[tuple[float, float], tuple[float, float]]] = {
+    "valparaiso": ((-33.10, -71.75), (-32.95, -71.55)),  # puerto chileno: ¿hay receptores en Chile?
+    "rotterdam": ((51.85, 3.90), (52.05, 4.50)),         # uno de los puertos más vigilados del mundo
+}
+
 NOMBRES_ZONA = {"primera_angostura": "Primera Angostura", "punta_arenas_porvenir": "Punta Arenas ↔ Porvenir"}
 
 
