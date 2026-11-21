@@ -1,0 +1,63 @@
+{
+ "fuente": "OpenStreetMap, vía 49793837 (\"Cruce Ferry Punta Delgada\")",
+ "url": "https://api.openstreetmap.org/api/0.6/way/49793837/full.json",
+ "licencia": "ODbL 1.0 · © colaboradores de OpenStreetMap · https://www.openstreetmap.org/copyright",
+ "descargado_utc": "2026-11-21T03:14:00Z",
+ "via": {
+  "id": 49793837,
+  "version": 11,
+  "nombre": "Cruce Ferry Punta Delgada",
+  "duracion": "00:20",
+  "desde": "Punta Delgada",
+  "hasta": "Bahía Azul"
+ },
+ "nodos": [
+  {
+   "id": 632646620,
+   "lat": -52.4566991,
+   "lon": -69.5457476,
+   "nombre": "Punta Delgada"
+  },
+  {
+   "id": 1612094717,
+   "lat": -52.4575456,
+   "lon": -69.5452097
+  },
+  {
+   "id": 1612094723,
+   "lat": -52.4607926,
+   "lon": -69.5456217
+  },
+  {
+   "id": 1612094725,
+   "lat": -52.4648797,
+   "lon": -69.5414654
+  },
+  {
+   "id": 1612094729,
+   "lat": -52.4727785,
+   "lon": -69.5334368
+  },
+  {
+   "id": 1612094731,
+   "lat": -52.4831239,
+   "lon": -69.5234339
+  },
+  {
+   "id": 1612094732,
+   "lat": -52.487238,
+   "lon": -69.5205709
+  },
+  {
+   "id": 1612094733,
+   "lat": -52.4924465,
+   "lon": -69.5194537
+  },
+  {
+   "id": 632646610,
+   "lat": -52.4945736,
+   "lon": -69.5199923,
+   "nombre": "Bahía Azul"
+  }
+ ]
+}
