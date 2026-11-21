@@ -841,3 +841,14 @@ ts_utc,date,origin,destination,boarding,departure,status,icon
 2026-11-21T03:01:14Z,2026-11-22,Punta Arenas,Porvenir,08:30,09:30,NORMAL,EstadoCruceEnViaje
 2026-11-21T03:01:14Z,2026-11-22,Puerto Edén,Puerto Natales,12:00,13:00,NORMAL,EstadoCruceEnViaje
 2026-11-21T03:01:14Z,2026-11-22,Porvenir,Punta Arenas,18:00,19:00,NORMAL,EstadoCruceEnViaje
+2026-11-21T03:31:07Z,2026-11-21,Punta Arenas,Porvenir,08:30,09:30,NORMAL,EstadoCruceEnViaje
+2026-11-21T03:31:07Z,2026-11-21,Puerto Williams,Punta Arenas,15:00,16:00,NORMAL,EstadoCruceEnViaje
+2026-11-21T03:31:07Z,2026-11-21,Porvenir,Punta Arenas,18:00,19:00,NORMAL,EstadoCruceEnViaje
+2026-11-21T03:31:07Z,2026-11-21,Puerto Yungay,Puerto Natales,18:00,19:00,NORMAL,EstadoCruceEnViaje
+2026-11-21T03:31:07Z,2026-11-21,Puerto Yungay,Puerto Edén,18:00,19:00,NORMAL,EstadoCruceEnViaje
+2026-11-21T03:31:07Z,2026-11-21,Puerto Yungay,Caleta Tortel,18:00,19:00,NORMAL,EstadoCruceEnViaje
+2026-11-21T03:31:07Z,2026-11-21,Caleta Tortel,Puerto Edén,21:00,22:00,NORMAL,EstadoCruceEnViaje
+2026-11-21T03:31:07Z,2026-11-21,Caleta Tortel,Puerto Natales,21:00,22:00,NORMAL,EstadoCruceEnViaje
+2026-11-21T03:31:07Z,2026-11-22,Punta Arenas,Porvenir,08:30,09:30,NORMAL,EstadoCruceEnViaje
+2026-11-21T03:31:07Z,2026-11-22,Puerto Edén,Puerto Natales,12:00,13:00,NORMAL,EstadoCruceEnViaje
+2026-11-21T03:31:07Z,2026-11-22,Porvenir,Punta Arenas,18:00,19:00,NORMAL,EstadoCruceEnViaje
