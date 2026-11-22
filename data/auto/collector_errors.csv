@@ -135,3 +135,4 @@ ts_utc,where_,error
 2026-11-19T23:01:28Z,tabsa,"fila de cruce programado inesperada: ['Puerto Natales', 'Puerto Edén', '20:00 (18-11)', '05:00', 'NORMAL']"
 2026-11-20T19:31:47Z,weather,HTTP Error 429: Too Many Requests
 2026-11-21T19:02:44Z,weather,<urlopen error _ssl.c:1063: The handshake operation timed out>
+2026-11-22T19:02:32Z,weather,Expecting value: line 1 column 1 (char 0)
