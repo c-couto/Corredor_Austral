@@ -67,5 +67,31 @@ class ReglasTest(unittest.TestCase):
                 self.assertTrue(re.search(rf"\b{c}\b", texto), f"{archivo} no menciona {c}")
 
 
+class AccesoDesdeLaWebTest(unittest.TestCase):
+    def test_boton_en_la_pagina_principal(self):
+        from datetime import datetime, timezone
+        from corredor import conditions, web
+        from .helpers import TempDataDir
+
+        class Pagina(TempDataDir):
+            def runTest(self):
+                pass
+
+        t = Pagina()
+        t.setUp()
+        try:
+            now = datetime(2026, 11, 22, 15, 0, tzinfo=timezone.utc)
+            html = web.render(conditions.snapshot(now=now, fetch_forecast=False), now=now)
+        finally:
+            t.doCleanups()
+        self.assertIn('href="en-vivo/"', html)
+        self.assertIn("Ver ferris en vivo", html)
+        self.assertIn("demo", html)  # se avisa que es una demo
+
+    def test_pages_copia_la_pantalla(self):
+        wf = (CARPETA.parent.parent / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8")
+        self.assertIn("cp -r paginas/en-vivo _site/en-vivo", wf)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -522,6 +522,48 @@ btns.forEach(function(b,i){b.addEventListener('click',function(){show(i)})});sho
 """
 
 
+# Acceso a la pantalla "Ferris en vivo" (paginas/en-vivo/, se publica en en-vivo/).
+# Mini animación: una barcaza zarpa, cruza, gira y vuelve entre las dos rampas.
+ENVIVO = """<a class="envivo" href="en-vivo/">
+  <span class="ev-mapa" aria-hidden="true">
+    <span class="ev-linea"></span><span class="ev-rampa a"></span><span class="ev-rampa b"></span>
+    <svg class="ev-barco" viewBox="0 0 26 66"><path d="M5.5 1.5h15l-1.2 8h-12.6z" fill="#9AA7B4"/>
+      <path d="M3.2 8.5h19.6a2 2 0 0 1 2 2v49a4 4 0 0 1-4 4H5.2a4 4 0 0 1-4-4v-49a2 2 0 0 1 2-2z" fill="#F59E42" stroke="#0A1826"/>
+      <rect x="3.6" y="10.4" width="18.8" height="33" rx="1" fill="#AEB9C4"/>
+      <rect x="5" y="12" width="6.4" height="14" rx=".9" fill="#E9EEF3"/><rect x="14.6" y="12.6" width="6" height="8" rx="1.6" fill="#C8453F"/>
+      <rect x="14.6" y="22.6" width="6" height="8" rx="1.6" fill="#3F7FC4"/>
+      <rect x="4.6" y="45" width="16.8" height="13.6" rx="1.8" fill="#F3F6F9"/><rect x="6.6" y="45.6" width="12.8" height="1.5" fill="#1E2C3A"/></svg>
+  </span>
+  <span class="ev-txt"><span class="ev-vivo"><i></i>EN VIVO · demo</span>
+    <b>Ver ferris en vivo</b>
+    <small>Primera Angostura en el mapa: zarpe, giro, cruce y atraque.</small></span>
+  <span class="ev-flecha" aria-hidden="true">→</span>
+</a>"""
+
+ENVIVO_CSS = """
+.envivo{display:flex;align-items:center;gap:14px;margin:12px 0;padding:12px 14px;border-radius:16px;text-decoration:none;color:#EAF1F7;
+background:radial-gradient(120% 160% at 0 0,#123a5e 0,#0B2C4B 45%,#0A1826 100%);border:1px solid rgba(245,158,66,.45);
+box-shadow:0 0 0 1px rgba(245,158,66,.08),0 10px 30px rgba(245,158,66,.12)}
+.envivo:hover{border-color:#F59E42}
+.ev-mapa{position:relative;flex:none;width:118px;height:62px;border-radius:12px;overflow:hidden;
+background:repeating-linear-gradient(115deg,rgba(170,212,245,.07) 0 2px,transparent 2px 11px),#0B2C4B;border:1px solid rgba(169,188,205,.18)}
+.ev-linea{position:absolute;left:12px;right:12px;top:50%;border-top:1.5px dashed rgba(169,188,205,.45)}
+.ev-rampa{position:absolute;top:50%;width:7px;height:7px;margin-top:-3.5px;border-radius:50%;background:#0A1826;border:1.5px solid #EAF1F7}
+.ev-rampa.a{left:6px}.ev-rampa.b{right:6px}
+.ev-barco{position:absolute;top:50%;width:11px;height:28px;margin-top:-14px;left:10px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6));
+animation:ev-cruce 12s ease-in-out infinite}
+@keyframes ev-cruce{0%,10%{left:10px;transform:rotate(90deg)}44%,52%{left:calc(100% - 21px);transform:rotate(90deg)}
+58%{left:calc(100% - 21px);transform:rotate(270deg)}92%,96%{left:10px;transform:rotate(270deg)}100%{left:10px;transform:rotate(450deg)}}
+.ev-txt{display:grid;gap:1px;min-width:0;flex:1}
+.ev-txt b{font-size:1.05rem}.ev-txt small{font-size:.76rem;color:#A9BCCD}
+.ev-vivo{display:inline-flex;align-items:center;gap:6px;font-size:.64rem;font-weight:800;letter-spacing:.1em;color:#FFC27A}
+.ev-vivo i{width:7px;height:7px;border-radius:50%;background:#FF4D5E;box-shadow:0 0 0 0 rgba(255,77,94,.6);animation:ev-late 1.6s infinite}
+@keyframes ev-late{70%{box-shadow:0 0 0 6px rgba(255,77,94,0)}100%{box-shadow:0 0 0 0 rgba(255,77,94,0)}}
+.ev-flecha{font-size:1.3rem;color:#F59E42;flex:none}
+@media (prefers-reduced-motion:reduce){.ev-barco,.ev-vivo i{animation:none}}
+"""
+
+
 def render(snap: Snapshot, now: datetime | None = None) -> str:
     now = now or snap.now
     stale = (f'<div class="alert">⚠️ Los datos tienen más de {config.STALE_AFTER_H} h. '
@@ -545,7 +587,7 @@ def render(snap: Snapshot, now: datetime | None = None) -> str:
 <meta name="color-scheme" content="dark">
 <meta property="og:title" content="Corredor Austral · el semáforo del Estrecho">
 <meta property="og:description" content="Estado oficial, probabilidad de suspensión por viento y la mejor hora para salir.">
-<style>{CSS}</style>
+<style>{CSS}{ENVIVO_CSS}</style>
 </head>
 <body>
 <div class="proto" role="note"><b>Prototipo – versión preliminar.</b> Las predicciones son experimentales:
@@ -554,6 +596,7 @@ def render(snap: Snapshot, now: datetime | None = None) -> str:
 <main>
 <div class="wrap">
   {stale}
+  {ENVIVO}
   <div class="info"><span aria-hidden="true">ℹ️</span><div>El <b>%</b> es la <b>probabilidad de que TABSA suspenda el
   cruce</b> por viento. No mide el peligro de cruzar: si el cruce opera, es seguro.</div></div>
   {cards}

@@ -31,9 +31,9 @@ export const FERRIS_SIMULADOS = [
   { mmsi: 725001968, nombre: "Pionero", naviera: "TABSA", primera: "08:00", desde: "inicio", atraque_m: 0 },
   { mmsi: 725003001, nombre: "Kawéskar", naviera: "TABSA", primera: "08:00", desde: "fin", atraque_m: 0 },
   // MMSI de ejemplo: el real del Kataik todavía no lo conocemos.
-  // Otra naviera: usa su propio muelle, a 250 m de la rampa de TABSA (posición de ejemplo),
+  // Otra naviera: usa su propio muelle, a 400 m de la rampa de TABSA (posición de ejemplo),
   // y entra a las rampas cuando los de TABSA no están maniobrando.
-  { mmsi: 999000001, nombre: "Kataik", naviera: "Naviera Tierra del Fuego", primera: "08:45", desde: "inicio", atraque_m: 250 },
+  { mmsi: 999000001, nombre: "Kataik", naviera: "Naviera Tierra del Fuego", primera: "08:45", desde: "inicio", atraque_m: 400 },
 ];
 
 const NUDO = 0.514444; // m/s

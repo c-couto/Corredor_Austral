@@ -45,6 +45,10 @@ jobs:
       - name: Generar la web
         run: python3 -m corredor web --out _site
 
+      # Pantalla "Ferris en vivo" (demo): archivos estáticos, se copian tal cual.
+      - name: Agregar la pantalla Ferris en vivo
+        run: cp -r paginas/en-vivo _site/en-vivo
+
       - name: Subir la web
         uses: actions/upload-pages-artifact@v3
         with:

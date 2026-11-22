@@ -217,7 +217,14 @@ Una fila por lugar y corrida.
 ## Mapa en vivo (premium)
 
 Idea: mostrar en un mapa dónde está cada ferry en este momento. Va a ser la función premium.
-**Hoy estamos en la etapa 1: medir si hay suficientes datos AIS en la zona.** Todavía no hay mapa público.
+**Hoy estamos en la etapa 1: medir si hay suficientes datos AIS en la zona.**
+
+**Pantalla demo publicada:** `en-vivo/` del sitio (código en `paginas/en-vivo/`, botón "Ver ferris en vivo"
+en la página principal). Los ferris son **simulados** con un horario aproximado en hora local (cruce de
+20 min, 10 min en rampa, servicio 08:00–24:00, según OpenStreetMap; `HORARIO` en `fuente-simulada.js`) y
+con las maniobras de una barcaza de rampa (llega de proa; al zarpar retrocede, gira y sale). Es real: el
+estado oficial de TABSA (si suspende, los ferris quedan en rampa), la ruta (vía OSM 49793837) y el viento.
+Cuando AIS tenga cobertura se cambia la fuente (`fuente-ais.js`, mismo formato) sin tocar el dibujo.
 
 **Fuente:** los barcos de pasajeros transmiten su posición por AIS (es obligatorio).
 [aisstream.io](https://aisstream.io) da esos datos gratis por WebSocket (`wss://stream.aisstream.io/v0/stream`):
