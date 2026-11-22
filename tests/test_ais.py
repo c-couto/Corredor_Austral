@@ -4,6 +4,7 @@ Todo con datos simulados en carpetas temporales: no se conecta a internet ni toc
 """
 
 import json
+import math
 import os
 import socket
 import unittest
@@ -287,11 +288,14 @@ class CrucesTest(unittest.TestCase):
     def test_buque_de_paso_no_cuenta_como_cruce(self):
         (_, la, oa), (_, lb, ob) = barcos.TERMINALES["primera_angostura"]
         mid = ((la + lb) / 2, (oa + ob) / 2)
-        kx = 111.32 * 0.6088
+        kx, ky = 111.32 * math.cos(math.radians(mid[0])), 110.57
+        bx, by = (ob - oa) * kx, (lb - la) * ky          # línea del ferry, en km
+        largo = math.hypot(bx, by)
+        px, py = by / largo, -bx / largo                 # perpendicular (unitaria, km)
         pts = []
         for i, s in enumerate(range(-15, 16)):  # recorre el Estrecho perpendicular a la línea del ferry
-            lat = mid[0] - s * 2.71 / 110.57 / 6.16
-            lon = mid[1] + s * 5.53 / kx / 6.16
+            lat = mid[0] + s * py / ky
+            lon = mid[1] + s * px / kx
             pts.append(reporte.Punto(T0 + timedelta(minutes=2 * i), lat, lon, 12.0))
         self.assertEqual(reporte.detectar_cruces(pts, "primera_angostura"), [])
 

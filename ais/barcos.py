@@ -36,12 +36,14 @@ ZONAS_CONTROL: dict[str, tuple[tuple[float, float], tuple[float, float]]] = {
 NOMBRES_ZONA = {"primera_angostura": "Primera Angostura", "punta_arenas_porvenir": "Punta Arenas ↔ Porvenir"}
 
 
-# Terminales de cada cruce (lat, lon). APROXIMADAS: el reporte muestra dónde se quedan
-# quietos los ferris de verdad ("muelles observados") para corregirlas con datos.
+# Terminales de cada cruce (lat, lon), tomadas de OpenStreetMap. El reporte igual muestra
+# dónde se quedan quietos los ferris de verdad ("muelles observados") para verificarlas.
 TERMINALES: dict[str, tuple[tuple[str, float, float], tuple[str, float, float]]] = {
-    "primera_angostura": (("Punta Delgada", -52.455, -69.540), ("Bahía Azul", -52.505, -69.580)),
-    "punta_arenas_porvenir": (("Punta Arenas (Tres Puentes)", -53.129, -70.873),
-                              ("Porvenir (Bahía Chilota)", -53.299, -70.370)),
+    # Rampas reales de OpenStreetMap (vía 49793837, nodos 632646620 y 632646610).
+    "primera_angostura": (("Punta Delgada", -52.4566991, -69.5457476), ("Bahía Azul", -52.4945736, -69.5199923)),
+    # Terminales reales de OpenStreetMap (nodos 461515635 y 639853443).
+    "punta_arenas_porvenir": (("Punta Arenas (Tres Puentes)", -53.1211734, -70.8667496),
+                              ("Porvenir (Bahía Chilota)", -53.3046949, -70.4347761)),
 }
 
 # Un cruce es pasar de un extremo (< 20 % del camino) al otro (> 80 %) en menos de este tiempo.
