@@ -1,6 +1,6 @@
 {
  "version": 1,
- "trained_utc": "2026-11-22T00:01:39Z",
+ "trained_utc": "2026-11-23T00:01:35Z",
  "features": [
   "rafaga_kmh",
   "viento_kmh",
@@ -14,10 +14,10 @@
    "bias": 0.0,
    "means": [],
    "stds": [],
-   "n_samples": 106,
+   "n_samples": 156,
    "n_positive": 0,
-   "trained_utc": "2026-11-22T00:01:39Z",
-   "reason": "Regla base: hacen falta al menos 60 muestras y 8 suspensiones registradas (hay 106 y 0).",
+   "trained_utc": "2026-11-23T00:01:35Z",
+   "reason": "Regla base: hacen falta al menos 60 muestras y 8 suspensiones registradas (hay 156 y 0).",
    "metrics": {}
   },
   "punta_arenas_porvenir": {
@@ -26,10 +26,10 @@
    "bias": 0.0,
    "means": [],
    "stds": [],
-   "n_samples": 21,
+   "n_samples": 30,
    "n_positive": 0,
-   "trained_utc": "2026-11-22T00:01:39Z",
-   "reason": "Regla base: hacen falta al menos 60 muestras y 8 suspensiones registradas (hay 21 y 0).",
+   "trained_utc": "2026-11-23T00:01:35Z",
+   "reason": "Regla base: hacen falta al menos 60 muestras y 8 suspensiones registradas (hay 30 y 0).",
    "metrics": {}
   },
   "rio_verde": {
@@ -38,10 +38,10 @@
    "bias": 0.0,
    "means": [],
    "stds": [],
-   "n_samples": 106,
+   "n_samples": 156,
    "n_positive": 0,
-   "trained_utc": "2026-11-22T00:01:39Z",
-   "reason": "Regla base: hacen falta al menos 60 muestras y 8 suspensiones registradas (hay 106 y 0).",
+   "trained_utc": "2026-11-23T00:01:35Z",
+   "reason": "Regla base: hacen falta al menos 60 muestras y 8 suspensiones registradas (hay 156 y 0).",
    "metrics": {}
   }
  }
