@@ -1903,3 +1903,10 @@ ts_utc,date,origin,destination,boarding,departure,status,icon
 2026-11-23T17:31:04Z,2026-11-24,Puerto Williams,Punta Arenas,13:00,14:00,NORMAL,EstadoCruceEnViaje
 2026-11-23T17:31:04Z,2026-11-24,Porvenir,Punta Arenas,14:00,15:00,NORMAL,EstadoCruceEnViaje
 2026-11-23T17:31:04Z,2026-11-24,Punta Arenas,Porvenir,17:00,18:00,NORMAL,EstadoCruceEnViaje
+2026-11-23T18:01:17Z,2026-11-23,Punta Arenas,Puerto Williams,23:00 (22-11),01:00,NORMAL,EstadoCruceEnViaje
+2026-11-23T18:01:17Z,2026-11-23,Punta Arenas,Porvenir,08:00,09:00,NORMAL,EstadoCruceEnViaje
+2026-11-23T18:01:17Z,2026-11-23,Porvenir,Punta Arenas,18:00,19:00,NORMAL,EstadoCruceEnViaje
+2026-11-23T18:01:17Z,2026-11-24,Punta Arenas,Porvenir,08:00,09:00,NORMAL,EstadoCruceEnViaje
+2026-11-23T18:01:17Z,2026-11-24,Puerto Williams,Punta Arenas,13:00,14:00,NORMAL,EstadoCruceEnViaje
+2026-11-23T18:01:17Z,2026-11-24,Porvenir,Punta Arenas,14:00,15:00,NORMAL,EstadoCruceEnViaje
+2026-11-23T18:01:17Z,2026-11-24,Punta Arenas,Porvenir,17:00,18:00,NORMAL,EstadoCruceEnViaje
