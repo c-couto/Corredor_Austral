@@ -383,3 +383,5 @@ ts_utc,crossing,status,icon
 2026-11-23T14:01:19Z,rio_verde,SUSPENDIDO,EstadoCruceCancelado
 2026-11-23T14:31:14Z,primera_angostura,NORMAL,EstadoCruceEnViaje
 2026-11-23T14:31:14Z,rio_verde,SUSPENDIDO,EstadoCruceCancelado
+2026-11-23T15:01:21Z,primera_angostura,NORMAL,EstadoCruceEnViaje
+2026-11-23T15:01:21Z,rio_verde,NORMAL,EstadoCruceEnViaje
