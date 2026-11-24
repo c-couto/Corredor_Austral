@@ -50,14 +50,14 @@ jobs:
         run: cp -r paginas/en-vivo _site/en-vivo
 
       - name: Subir la web
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
       - name: Publicar en GitHub Pages
         id: deploy
         continue-on-error: true
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
       # A veces GitHub no encuentra el archivo recién subido ("No artifacts named
       # github-pages were found"): es una falla de ellos. Se espera un poco, se vuelve
@@ -69,7 +69,7 @@ jobs:
 
       - name: Subir la web (reintento)
         if: steps.deploy.outcome == 'failure'
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: _site
           name: github-pages-reintento
@@ -77,6 +77,6 @@ jobs:
       - name: Publicar en GitHub Pages (reintento)
         id: deploy2
         if: steps.deploy.outcome == 'failure'
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
         with:
           artifact_name: github-pages-reintento
