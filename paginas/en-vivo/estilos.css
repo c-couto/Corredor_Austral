@@ -63,12 +63,12 @@ h1 {
 
 /* 2. Selector */
 .selector {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+  display: grid; grid-template-columns: 1fr 1.25fr .8fr; gap: 4px; /* 3 cruces en una fila */
   background: var(--superficie); border: 1px solid var(--linea); border-radius: 14px; padding: 4px;
 }
 .selector button {
   border: 0; background: transparent; color: var(--texto-2);
-  padding: 9px 6px; border-radius: 10px; font-size: .84rem; font-weight: 600; cursor: pointer;
+  padding: 8px 4px; border-radius: 10px; font-size: .8rem; font-weight: 600; cursor: pointer; line-height: 1.2;
 }
 .selector button[aria-selected="true"] { background: var(--superficie-2); color: var(--texto); box-shadow: 0 1px 0 rgba(255,255,255,.05) inset; }
 

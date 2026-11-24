@@ -49,6 +49,62 @@ class DatosPuntaArenasPorvenirTest(unittest.TestCase):
         self.assertIn("Horario real TABSA · posición estimada", app)  # se aclara qué es real y qué estimado
 
 
+class DatosRioVerdeTest(unittest.TestCase):
+    def setUp(self):
+        self.ruta = json.loads((CARPETA / "datos" / "cruce-rio-verde.json").read_text(encoding="utf-8"))
+        self.horario = json.loads((CARPETA / "datos" / "horario-rio-verde.json").read_text(encoding="utf-8"))
+
+    def test_via_de_osm_entre_las_rampas_reales(self):
+        self.assertEqual(self.ruta["via"]["id"], 164993132)
+        nodos = self.ruta["nodos"]
+        self.assertEqual((nodos[0]["id"], nodos[0]["nombre"]), (6294500944, "Isla Riesco"))
+        self.assertEqual((nodos[-1]["id"], nodos[-1]["nombre"]), (1765874221, "Villa Ponsomby"))
+        self.assertIn("ODbL", self.ruta["licencia"])
+        self.assertIn("cinco minutos", self.ruta["via"]["duracion_fuente"])  # dato de TABSA
+
+    def test_horario_con_fuente_y_temporadas_que_cubren_todo_el_anio(self):
+        self.assertIn("rioverde.cl", self.horario["url"])
+        self.assertIn("TABSA", self.horario["fuente"])
+        nombres = [t["nombre"] for t in self.horario["temporadas"]]
+        self.assertEqual(nombres, ["invierno", "verano"])
+        inv, ver = self.horario["temporadas"]
+        self.assertEqual((inv["desde"], inv["hasta"], ver["desde"], ver["hasta"]),
+                         ("04-22", "09-30", "10-01", "04-21"))
+
+    def test_cada_ida_tiene_su_vuelta_10_min_despues(self):
+        # Así es el horario oficial: el ferry sale de Isla Riesco y vuelve desde Villa Ponsomby
+        # 10 minutos después. Sirve para detectar un error al copiar una hora.
+        def m(h):
+            hh, mm = h.split(":")
+            return int(hh) * 60 + int(mm)
+        cantidades = {}
+        for t in self.horario["temporadas"]:
+            self.assertEqual(set(t["dias"]), {"lun_mie", "mar_jue_vie", "sab", "dom"})
+            for dia, g in t["dias"].items():
+                ida, vuelta = g["isla_riesco"], g["villa_ponsomby"]
+                self.assertEqual(len(ida), len(vuelta), (t["nombre"], dia))
+                self.assertEqual(ida, sorted(ida))
+                for a, b in zip(ida, vuelta):
+                    self.assertEqual(m(b) - m(a), 10 if not (t["nombre"] == "invierno" and dia == "lun_mie"
+                                                            and a == "19:00") else 20, (t["nombre"], dia, a, b))
+                cantidades[(t["nombre"], dia)] = len(ida)
+        # Cantidad de cruces por sentido, contada en la imagen oficial.
+        self.assertEqual(cantidades, {
+            ("invierno", "lun_mie"): 9, ("invierno", "mar_jue_vie"): 6, ("invierno", "sab"): 7, ("invierno", "dom"): 5,
+            ("verano", "lun_mie"): 9, ("verano", "mar_jue_vie"): 6, ("verano", "sab"): 7, ("verano", "dom"): 5,
+        })
+
+    def test_pantalla_usa_el_horario_y_el_estado_de_tabsa(self):
+        app = (CARPETA / "app.js").read_text(encoding="utf-8")
+        self.assertIn("datos/horario-rio-verde.json", app)
+        self.assertIn('tabsa: "rio_verde"', app)
+        self.assertIn("Horario oficial TABSA · posición estimada", app)
+        self.assertIn('data-ruta="rv"', (CARPETA / "index.html").read_text(encoding="utf-8"))
+
+    def test_porvenir_usa_la_duracion_de_tabsa(self):
+        self.assertIn("duracion_min: 120", (CARPETA / "app.js").read_text(encoding="utf-8"))
+
+
 class ReglasTest(unittest.TestCase):
     def archivos(self):
         return [p for p in CARPETA.rglob("*") if p.suffix in {".js", ".html", ".css", ".json"}]

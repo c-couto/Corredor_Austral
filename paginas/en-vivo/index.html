@@ -38,6 +38,7 @@
   <div class="selector" role="tablist" aria-label="Cruce">
     <button type="button" role="tab" aria-selected="true" data-ruta="pa">Primera Angostura</button>
     <button type="button" role="tab" aria-selected="false" data-ruta="pap">Punta Arenas – Porvenir</button>
+    <button type="button" role="tab" aria-selected="false" data-ruta="rv">Río Verde</button>
   </div>
 
   <section class="mapa-caja" aria-label="Mapa del cruce">
@@ -104,11 +105,14 @@
 
 <dialog id="dlg-info" aria-labelledby="info-titulo">
   <h2 id="info-titulo">Sobre esta pantalla</h2>
-  <p><b>Los ferris de este mapa son una simulación.</b> Estamos midiendo si las señales AIS de los barcos
-    llegan bien desde el Estrecho; cuando alcancen, el mapa va a mostrar las posiciones reales.</p>
+  <p><b>Las posiciones de los ferris son estimadas.</b> Con los servicios gratuitos no llega señal AIS de los
+    barcos desde la zona; el mapa ubica a cada ferry según el horario de su cruce.</p>
   <p><b>Punta Arenas – Porvenir:</b> el ferry sigue los <b>zarpes reales que publica TABSA</b> (hora, origen y
-    estado; si TABSA suspende un zarpe, el ferry no sale). La posición durante el cruce es una estimación:
-    duración de 2 h 20 min según OpenStreetMap.</p>
+    estado; si TABSA suspende o cancela un zarpe, el ferry no sale). La posición durante el cruce es una
+    estimación: duración de unas 2 horas, según TABSA.</p>
+  <p><b>Río Verde – Isla Riesco:</b> el ferry Bahía Azul sigue el <b>horario oficial de TABSA</b> para el canal
+    Fitz Roy (cambia según la temporada y el día de la semana). Si TABSA informa el cruce suspendido, el ferry no
+    sale. Cruce de unos 400 m en unos 5 minutos, según TABSA; la posición durante el cruce es una estimación.</p>
   <p><b>Primera Angostura:</b> la simulación sigue un <b>horario aproximado</b> en hora local: cruce de 20 min, 10 min de
     embarque en rampa y servicio de 08:00 a 24:00 (datos de OpenStreetMap; a confirmar con TABSA).
     Si TABSA informa el cruce suspendido, los ferris se quedan en rampa.</p>
@@ -117,7 +121,9 @@
     (<a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a>).</p>
   <p>Mapa: <a href="https://openfreemap.org" rel="noopener">OpenFreeMap</a> ·
     © <a href="https://www.openstreetmap.org/copyright" rel="noopener">colaboradores de OpenStreetMap</a>.
-    Ruta del cruce: vía OSM 49793837.</p>
+    Rutas de los cruces: vías OSM 49793837, 86335223 y 164993132. Horario de Río Verde:
+    <a href="https://rioverde.cl/noticias/422-horario-cruce-canal-fitz-roy-verano" rel="noopener">TABSA, publicado
+    por la Municipalidad de Río Verde</a>.</p>
   <div class="dlg-botones">
     <button type="button" class="btn-texto" id="btn-ver-invitacion">Ver invitación a Premium</button>
     <button type="button" class="btn-activar chico" id="btn-cerrar-info">Cerrar</button>
