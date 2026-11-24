@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Callable, NamedTuple
 
-from . import config, forecast, storage
+from . import config, forecast, predicciones, storage
 from .sources import tabsa, weather_source
 
 
@@ -72,6 +72,16 @@ def collect_once(
     source_name = source_name or default_name
     tabsa_fn = tabsa_fn or tabsa.fetch
 
+    # TABSA primero: es el dato más valioso y no depende del clima. Si el clima tarda
+    # (reintentos de 1 minuto cuando Open-Meteo está saturado), el estado oficial ya quedó leído.
+    crossings = sailings = changes = 0
+    try:
+        page = tabsa_fn()
+        changes = save_tabsa(ts, page)
+        crossings, sailings = len(page.crossings), len(page.sailings)
+    except Exception as e:
+        storage.log_error("tabsa", e)
+
     try:
         weather = weather_fn(config.PLACES)
     except Exception as e:
@@ -105,12 +115,12 @@ def collect_once(
         except Exception as e:
             storage.log_error("pronosticos", e)
 
-    crossings = sailings = changes = 0
-    try:
-        page = tabsa_fn()
-        changes = save_tabsa(ts, page)
-        crossings, sailings = len(page.crossings), len(page.sailings)
-    except Exception as e:
-        storage.log_error("tabsa", e)
+    # Lo que predijimos en esta corrida (el mismo cálculo que la web), para medir después
+    # "cómo nos fue". Solo con clima de ESTA corrida: sin eso sería una predicción vieja.
+    if weather:
+        try:
+            storage.append_rows(storage.PREDICTIONS, predicciones.filas(ts))
+        except Exception as e:  # nunca rompe la corrida
+            storage.log_error("predicciones", e)
 
     return CollectResult(len(weather), len(marine), crossings, sailings, changes, snapshot)

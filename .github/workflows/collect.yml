@@ -1,14 +1,15 @@
 # IMPORTANTE: no renombrar este archivo ni quitar `workflow_dispatch`:
 # cron-job.org dispara este workflow por su nombre de archivo (collect.yml).
 #
-# Costo: un solo trabajo de ~1 minuto por corrida. Con 48 corridas por día son
-# ~1.440 min/mes, dentro de los 2.000 gratis de GitHub para repos privados.
+# Costo: un solo trabajo de ~1 minuto por corrida (48 por día). El repo es PÚBLICO:
+# no gasta cupo. Si volviera a privado serían ~1.440 de los 2.000 min/mes gratis.
 # Leer TABSA usa el Chrome que ya trae el servidor: no se instala nada.
 name: collect
 
 on:
   schedule:
-    # Cada 30 minutos (minutos 7 y 37, para evitar el pico de las horas en punto).
+    # Respaldo a los minutos 20 y 50. La que manda es cron-job.org, a los 5 y 35
+    # (lejos de las horas en punto y y media, cuando Open-Meteo se congestiona).
     - cron: "20,50 * * * *"
   workflow_dispatch: {}
 

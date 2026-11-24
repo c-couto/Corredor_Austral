@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
-from .. import net
+from .. import config, net
 from . import Places, num
 
 NAME = "open-meteo"
@@ -17,17 +17,19 @@ MARINE_URL = "https://marine-api.open-meteo.com/v1/marine"
 FORECAST_HOURS = 48
 
 
-def fetch_many(url: str, places: Places, params: Mapping[str, Any]) -> dict[str, dict]:
+def fetch_many(url: str, places: Places, params: Mapping[str, Any],
+               waits: tuple[float, ...] | None = None) -> dict[str, dict]:
     """Una consulta para varios lugares. Devuelve {lugar: respuesta cruda}.
 
     Open-Meteo devuelve una lista con un resultado por lugar, en el mismo orden.
+    `waits`: esperas entre reintentos (por defecto las cortas de net.py).
     """
     names = list(places)
     data = net.get_json(url, {
         "latitude": ",".join(str(places[p][0]) for p in names),
         "longitude": ",".join(str(places[p][1]) for p in names),
         **params,
-    })
+    }, waits=waits)
     if isinstance(data, dict):  # con un solo lugar devuelve un objeto, no una lista
         data = [data]
     if len(data) != len(names):
@@ -43,7 +45,7 @@ def fetch_weather(places: Places) -> dict[str, dict]:
         "forecast_hours": FORECAST_HOURS,
         "wind_speed_unit": "kmh",
         "timezone": "UTC",
-    })
+    }, waits=config.WEATHER_RETRY_WAITS_S)  # 3 intentos, 1 min entre cada uno
     out = {}
     for place, data in raw.items():
         cur = data.get("current") or {}

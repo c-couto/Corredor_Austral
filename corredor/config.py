@@ -24,6 +24,11 @@ MODEL_PATH_PARTS = ("model", "modelo.json")  # dentro de DATA_DIR
 # esperando cada vez un poco más (5 s, 10 s y 20 s).
 HTTP_TIMEOUT_S = 15
 RETRY_WAITS_S = (5, 10, 20)
+# Clima de Open-Meteo: cuando falla es casi siempre porque el servidor está saturado (el
+# "handshake" no termina en 15 s). Sirve más esperar un minuto que insistir rápido.
+# 3 intentos en total, 60 s entre cada uno (peor caso ~2 min 45 s; el trabajo tiene 6 min
+# y TABSA se lee ANTES del clima, así que nunca se pierde por esto).
+WEATHER_RETRY_WAITS_S = (60, 60)
 
 # ---------------------------------------------------------------- lugares
 
