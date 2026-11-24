@@ -7,9 +7,10 @@ y Punta Arenas–Porvenir). TABSA publica el estado del cruce *en el momento*
 cada 30 minutos y construimos encima lo que TABSA no ofrece:
 
 1. **Estado actual**: claro, rápido, pensado para el celular.
-2. **Historial y estadísticas**: cuándo se suspendió, cuánto duró, qué meses/horas son peores.
+2. **Historial y estadísticas**: cuándo se suspendió, cuánto duró, qué días/horas son peores.
 3. **Avisos**: notificar cuando un cruce pasa de NORMAL a suspendido y cuando se reanuda.
-4. **Pronóstico**: estimar si va a cruzar en las próximas horas (viento/marea + historial).
+4. **Pronóstico**: probabilidad de suspensión en las próximas horas. **Lo más importante es
+   que sea preciso.**
 
 ## Equipo
 Sabemos algo de programación: entendemos el código si lo vemos, pero no escribimos mucho.
@@ -18,89 +19,115 @@ Sabemos algo de programación: entendemos el código si lo vemos, pero no escrib
 - Antes de cambios grandes (borrar archivos, cambiar el formato de los datos, agregar
   servicios pagos o que pidan tarjeta), preguntá primero.
 - Nunca pongas tokens ni claves en el código: usá GitHub Secrets / variables de entorno.
+- Si una tarea es "solo diagnóstico", no cambies nada: leé, calculá y reportá.
 
-## Cómo funciona hoy (v0.4, 17/11/2026)
-- `.github/workflows/collect.yml`: workflow `collect`. En cada corrida (un solo trabajo, ~1 min):
-  clima de 8 puntos + pronóstico horario, estado de TABSA, reentrenamiento diario del modelo,
-  commit de `data/auto/` y `data/model/`, y aviso por Telegram si algo cambió.
-- Se dispara cada 30 min desde cron-job.org (vía `workflow_dispatch`); el `schedule` de
-  GitHub (`7,37 * * * *`) queda de respaldo porque GitHub lo saltea seguido.
-  (Al 17/11 había muchas menos corridas que las esperadas: revisar cron-job.org.)
-- El token que usa cron-job.org vence el 17/12/2026.
-- Costo: ~1.440 de los 2.000 min/mes gratis. No agregar pasos que sumen minutos sin preguntar.
-- **TABSA**: la página se arma con JavaScript. Se renderiza con el Chrome/Edge que ya está en
-  la máquina (`corredor/browser.py`, `--headless --dump-dom`) y se leen las tablas visibles
-  (`corredor/sources/tabsa.py`). **No usar las APIs internas de TABSA** (`api-gw.tabsa.cl`, etc.):
-  piden autorización y su código está ofuscado a propósito.
-  Verificado el 17/11/2026 observando el tráfico de la página: el estado sale de
-  `api-gw.tabsa.cl/api/cruce/cruce/suspension` y `/cruce/20/fecha/...`, ambos con Authorization. Si la página cambia, el lector
-  lanza `TabsaFormatError` y queda en `collector_errors.csv` (no guarda datos dudosos).
-- **Datos**: CSV, uno por tabla. El diccionario completo está en la sección "Datos" del
-  `README.md`. Siempre se **agregan filas al final**.
-  - `data/auto/`: lo escribe solo el bot: `weather_obs`, `marine_obs`, `tabsa_estado`,
-    `tabsa_programados`, `tabsa_cambios`, `collector_errors`.
-  - `data/manual/`: lo escriben solo los comandos `status` / `event` / `crossing`.
-  - `data/auto/pronosticos/AAAA-MM.csv`: el pronóstico de 48 h (viento, oleaje, marea) de
-    Punta Delgada y Bahía Azul tal como estaba en cada corrida. Un archivo por mes (~12 KB por corrida).
-  - `data/model/modelo.json`: el modelo entrenado (se reescribe una vez por día; no es historial).
-  - `data/legacy/auto.db`: formato viejo (SQLite), solo respaldo.
-  - `.cache/pronostico.json`: pronóstico horario del momento, **fuera del repo**.
-- **Clima**: Open-Meteo (solo uso NO comercial) por defecto. Con la variable
-  `CORREDOR_MET_CONTACT` pasa a MET Norway (uso comercial permitido) y deja de usar Open-Meteo.
-  **Antes de cobrar por el servicio hay que activar MET Norway.**
-- **Modelo** (`corredor/model.py`): regresión logística en Python puro sobre ráfaga, viento y
-  dirección, con el estado de TABSA como etiqueta. Usa una regla base hasta tener
-  `MODEL_MIN_SAMPLES` muestras y `MODEL_MIN_POSITIVES` suspensiones, y el modelo aprendido
-  solo la reemplaza si tiene mejor puntaje de Brier en el 20 % más reciente de los datos.
-- Ver los datos: `git pull` y después `python -m corredor web` / `resumen` / `report`.
+## ⚠️ Negocio: antes de cobrar
+- **Open-Meteo es solo para uso NO comercial.** Antes de cobrar (Premium o Plan Flota) hay
+  que pasar a **MET Norway** (variable `CORREDOR_MET_CONTACT`) y **revisar que el modelo,
+  entrenado con datos de Open-Meteo, siga funcionando con la fuente nueva**.
+- **Mapas**: OpenFreeMap + MapLibre (gratis, uso comercial permitido, crédito obligatorio a
+  OpenStreetMap). Nada de imágenes satelitales que prohíban el uso comercial.
+- Nunca copiar datos de sitios de terceros (MarineTraffic, VesselFinder…): sus condiciones
+  lo prohíben. Las posiciones AIS en vivo de la zona solo existen por satélite (pago).
+
+## Cómo funciona hoy (v0.4.0, 24/11/2026)
+- **Recolección** (`.github/workflows/collect.yml`, un trabajo de ~1 min, límite 6 min):
+  estado de TABSA, clima de 8 puntos + pronóstico horario, oleaje, reentrenamiento diario del
+  modelo (00:01 UTC), commit de `data/auto/` y `data/model/`, y aviso por Telegram.
+  - La dispara **cron-job.org a los :05 y :35** (vía `workflow_dispatch`). El `schedule` de
+    GitHub (`7,37 * * * *`) es solo respaldo: GitHub lo saltea o lo atrasa seguido.
+  - El token que usa cron-job.org vence el **17/12/2026**.
+  - **No renombrar `collect.yml`**: cron-job.org lo dispara por ese nombre.
+- **Repo PÚBLICO**: los minutos de Actions no gastan cupo. **Si vuelve a privado, apagar
+  `ais.yml` y revisar el consumo** (el cupo gratis es de 2.000 min/mes).
+- **TABSA**: la página se arma con JavaScript. Se renderiza con el Chrome/Edge de la máquina
+  (`corredor/browser.py`) y se leen las tablas visibles (`corredor/sources/tabsa.py`).
+  **No usar las APIs internas de TABSA** (`api-gw.tabsa.cl`): piden autorización y su código
+  está ofuscado a propósito. Si la página cambia, el lector lanza `TabsaFormatError` y queda
+  en `collector_errors.csv`. Los zarpes de otras rutas (Puerto Williams, Natales) se guardan
+  pero se filtran fuera de Punta Arenas–Porvenir (`model.is_route_sailing`).
+- **Clima**: Open-Meteo por defecto. Los errores son **timeouts al conectar con Open-Meteo**
+  (el "handshake" no termina en 15 s), casi siempre a los :02/:32 (congestión de las horas en
+  punto y y media). `net.py` ya reintenta (`RETRY_WAITS_S` en `config.py`: 5, 10 y 20 s); si
+  siguen, alargar las esperas. Si el clima falla, la corrida sigue y TABSA se guarda igual.
+- **Modelo** (`corredor/model.py`): regresión logística en Python puro (ráfaga, viento,
+  dirección), con el estado de TABSA como etiqueta. Usa la **regla base** (equivale a un umbral
+  de 70 km/h de ráfaga) hasta tener `MODEL_MIN_SAMPLES`=60 muestras y `MODEL_MIN_POSITIVES`=8
+  suspensiones; el aprendido solo la reemplaza si tiene mejor Brier en el 20 % más reciente.
+  Al 24/11 los 3 cruces usan la regla base.
+- **Evaluación** (`python -m corredor.evaluacion`): compara lo que predijimos con lo que hizo
+  TABSA, en el momento y con 3/12/24 h de anticipación, con el modelo vigente en cada momento.
+  Solo lee datos.
+- **Web** publicada en **GitHub Pages**: https://c-couto.github.io/Corredor_Austral/
+  (`.github/workflows/pages.yml`: se regenera al terminar cada `collect`; no hace commits).
+  Lleva el cartel "Prototipo – versión preliminar". `netlify.toml` + `web/` son una demo vieja
+  para Netlify, **no conectada**.
+- **Pantalla "En vivo"** (`paginas/en-vivo/`, en el sitio: `en-vivo/`), marcada **demo**. Es la
+  futura función **PREMIUM**.
+  - Primera Angostura: ferris **simulados** con un horario aproximado (OSM: cruce de 20 min,
+    servicio 08:00–24:00).
+  - Punta Arenas–Porvenir: sigue los **zarpes reales publicados por TABSA**; la posición en el
+    cruce es estimada.
+  - Regla: **nunca mostrar ferris cruzando si TABSA dice suspendido o cancelado** (la pantalla ya
+    lo respeta; el minimapa de la página principal todavía no).
+- **AIS** (`ais/`, `.github/workflows/ais.yml`): escucha aisstream.io 10 min a los :15 y :45 y
+  guarda en la **rama `datos-ais`, nunca en `main`**. Al 24/11: 127 sesiones (~21 h de escucha
+  en 64 h distintas) y **0 posiciones** → aisstream no cubre la zona. Plan B: antena AIS propia
+  en Punta Delgada / Bahía Azul (~100 USD). Clave en el Secret `AISSTREAM_API_KEY`.
+
+## Datos
+CSV, uno por tabla; diccionario completo en la sección "Datos" del `README.md`.
+- **Nunca** borrar ni reescribir el historial: solo se **agregan filas al final**. Si hay que
+  cambiar el formato, migrar sin perder filas.
+- Hora siempre en **UTC**; a hora local (UTC-3 todo el año en Magallanes y Tierra del Fuego)
+  solo al mostrar.
+- Registrar los **cambios de estado** con su hora (`tabsa_cambios.csv`), además de cada muestra.
+- `data/auto/` lo escribe solo el bot; `data/manual/` solo los comandos `status`/`event`/`crossing`.
+- `data/auto/pronosticos/AAAA-MM.csv`: pronóstico de 48 h tal como estaba en cada corrida
+  (solo Punta Delgada y Bahía Azul). `data/model/modelo.json`: el modelo (se reescribe a diario).
 
 ## Estructura del código
-- `corredor/` (paquete Python, solo biblioteca estándar, Python ≥ 3.10). Se corre con
-  `python -m corredor <comando>` desde la raíz.
-  - `config.py`: lugares, cruces (`ROUTES`), umbrales, planificador, links. Lo privado llega por
-    variables de entorno.
-  - `collect.py`: una recolección y el registro de cambios de estado de TABSA.
-  - `sources/`: `tabsa.py`, `open_meteo.py`, `met_norway.py` (mismo formato de salida).
-  - `browser.py`, `net.py` (reintentos), `storage.py` (CSV), `timeutil.py` (UTC ↔ local),
-    `forecast.py` (caché del pronóstico).
-  - `model.py`: modelo de riesgo. `conditions.py`: situación de cada cruce, **única fuente**
-    para la web, Telegram y WhatsApp. `web.py`: la web (`_site/index.html`, fuera del repo).
-    `alerts.py` + `channels/telegram.py`: avisos.
-- `tests/`: `unittest` (`python -m unittest -v`), 54 pruebas. Usan carpetas temporales, no
-  pueden salir a internet ni abrir el navegador. `tests/fixtures/` tiene un recorte real
-  de la página de TABSA.
-- `docs/MODELO_NEGOCIO.md`: cómo ganar plata (Plan Flota, patrocinios), validación y riesgos.
-- **No renombrar `.github/workflows/collect.yml`**: cron-job.org lo dispara por ese nombre.
+- `corredor/` (solo biblioteca estándar, Python ≥ 3.10): `python -m corredor <comando>`.
+  `config.py` (lugares, cruces, umbrales), `collect.py`, `sources/`, `net.py`, `storage.py`,
+  `timeutil.py`, `forecast.py`, `model.py`, `evaluacion.py`, `conditions.py` (**única fuente**
+  para web, Telegram y WhatsApp), `web.py`, `alerts.py` + `channels/telegram.py`.
+- `ais/`: sondeo y reporte de cobertura AIS. `paginas/en-vivo/`: pantalla En vivo (JS, sin build).
+- `tests/`: `python -m unittest -v`. **Todas tienen que pasar.** No salen a internet ni abren el
+  navegador ni tocan los datos reales.
+- `docs/MODELO_NEGOCIO.md`: Plan Flota, patrocinios, validación y riesgos.
 
-## Reglas sobre los datos
-- Los datos recolectados son el activo principal del proyecto: **nunca** borrar ni
-  reescribir el historial existente. Si hay que cambiar el formato, migrar sin perder filas.
-- Guardar siempre la hora en UTC y convertir a hora local solo al mostrar
-  (Argentina UTC-3, Chile según temporada).
-- Registrar los **cambios de estado** (de NORMAL a SUSPENDIDO y viceversa) con su hora,
-  además de cada muestra, para poder medir duraciones.
-
-## Arquitectura elegida (simple y gratis)
-- **Recolección**: GitHub Actions (ya existe).
-- **Datos**: archivos en el repo (CSV/JSON) mientras alcance; migrar a una base
-  (p. ej. Supabase) solo si se vuelve necesario.
-- **Web**: sitio estático que se arma a partir de los datos y se publica en GitHub Pages
-  (o Cloudflare Pages). Mobile-first, en español, carga rápida con señal mala de ruta.
-- **Avisos**: el mismo workflow detecta el cambio de estado y manda el mensaje.
-  Primero Telegram (gratis y simple); después WhatsApp (Cloud API de Meta, requiere
-  verificar la cuenta de negocio y tiene costo por conversación).
-- **Pronóstico**: Open-Meteo (gratis, sin API key) para viento en Primera Angostura.
-  Arrancar con reglas simples (umbrales de viento) y recién con varias semanas de
-  historial pasar a un modelo.
+## Lecciones del 24/11/2026 (primer temporal registrado)
+- Primera Angostura se suspendió de **12:31 a 16:01** (hora local) y cerró y reabrió con casi
+  el mismo viento (ráfagas de ~90 km/h). Coincidió con la **bajante fuerte de la marea**: es una
+  pista para probar la marea como dato del modelo, **no una conclusión**.
+- **Río Verde aguanta más viento** que la regla base (normal con ráfagas de 75–81 km/h): la regla
+  base no debería ser la misma para los 3 cruces.
+- **Bahía Azul y Punta Delgada caen en la misma celda de Open-Meteo**: Bahía Azul no aporta
+  nada. Hay que elegir otro punto.
+- Contar suspensiones por **evento**, no por lectura de 30 min, y **cada zarpe cancelado una sola
+  vez**, antes de que el modelo pase a "aprendido" (hoy una suspensión de 3,5 h suma 7 lecturas).
+- Falta **guardar la predicción emitida** en cada corrida para los 3 cruces: sin eso no se puede
+  medir "cómo nos fue" con anticipación (salvo Primera Angostura) ni publicarlo.
+- La regla base (umbral de 70 km/h) dio **muchas falsas alarmas** ese día.
+- **No ajustar umbrales a mano por un solo día.**
 
 ## Hoja de ruta
-- [x] Fase 0 – Revisar el repo, documentar el formato de datos y completar este archivo.
-- [ ] Fase 1 – Web: estado actual + historial básico (hecha en local; falta publicarla:
-      Cloudflare Pages gratis, o GitHub Pages si el repo pasa a público).
-- [x] Fase 2 – Avisos por Telegram al cambiar el estado (falta cargar los Secrets).
-- [ ] Fase 3 – Estadísticas: duración de suspensiones y mapa día/hora hechos; peores meses
-      cuando haya historial.
-- [x] Fase 4 – Pronóstico: probabilidad por hora con modelo que aprende de los datos
-      (con regla base mientras no haya suficientes suspensiones).
-- [ ] Fase 5 – WhatsApp (hoy: botón para compartir; la API de Meta es paga).
-- [ ] Negocio – Validar el Plan Flota con 5 empresas (ver `docs/MODELO_NEGOCIO.md`).
+Hecho:
+- [x] Recolección cada 30 min (TABSA, clima, oleaje, pronósticos) y registro de cambios.
+- [x] Web publicada en GitHub Pages (estado, gráfico, planificador, historial, mapa día/hora).
+- [x] Avisos por Telegram al cambiar el estado (verificar que estén cargados los Secrets).
+- [x] Modelo con regla base + evaluación (`corredor.evaluacion`).
+- [x] Pantalla En vivo (demo) y medición de cobertura AIS.
+
+Prioridades, en orden:
+1. Guardar las predicciones emitidas en cada corrida (3 cruces).
+2. Contar eventos y zarpes en lugar de lecturas.
+3. Reconstruir las suspensiones de años anteriores (prensa, redes de TABSA y de la Capitanía
+   de Puerto de Punta Delgada): es lo único que acorta la espera para entrenar.
+4. Probar la marea y la dirección del viento respecto del eje del estrecho como datos del
+   modelo, cuando haya varios temporales.
+5. Textos de la web: ventanas "16:00–16:00" sin día de fin, "ahora" contra pronóstico,
+   minimapa que respete a TABSA.
+6. Pasar a MET Norway antes de cobrar.
+
+Después: WhatsApp (la API de Meta es paga) y validar el Plan Flota con 5 empresas.
