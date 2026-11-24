@@ -168,7 +168,7 @@ def _chart(snap: Snapshot, st: RouteStatus) -> str:
     top = max([100.0, max(gusts) * 1.15] + [t * 1.25 for t in thr if t])
     top = math.ceil(top / 20) * 20
 
-    W, H, L, R, T, B = 360, 172, 30, 6, 18, 26
+    W, H, L, R, T, B = 360, 180, 30, 6, 18, 34
     pw, ph = W - L - R, H - T - B
     slot = pw / 72
 
@@ -212,15 +212,27 @@ def _chart(snap: Snapshot, st: RouteStatus) -> str:
                      f'width="{bw:.1f}" height="{y(0) - y(h.gust):.1f}" rx="1">'
                      f'<title>{fmt_local(h.t, "%d/%m %H:%M")} · pronóstico {h.gust:.0f} km/h · '
                      f'prob. de suspensión {pct(h.p)}</title></rect>')
-    # Eje de tiempo (hora local): marcas cada 12 h y "ahora".
-    t = to_local(start).replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
-    while t < to_local(start + span):
-        if t.hour in (0, 12):
-            label = WEEKDAYS[t.weekday()] if t.hour == 0 else "12 h"
-            parts.append(f'<line class="tick" x1="{x(t):.1f}" x2="{x(t):.1f}" y1="{T + ph}" y2="{T + ph + 4}"/>'
-                         f'<text class="ax{" ax-day" if t.hour == 0 else ""}" x="{x(t):.1f}" y="{H - 8}" '
-                         f'text-anchor="middle">{label}</text>')
+    # Eje de tiempo (hora local). Solo cambia lo que se ESCRIBE debajo del gráfico, no los datos:
+    #   fila 1: hora cada 6 h (6 h, 12 h, 18 h); a medianoche, una línea que separa los días.
+    #   fila 2: el día con su fecha ("Mié 25"), centrado en la parte visible de ese día.
+    t0, t1 = to_local(start), to_local(start + span)
+    t = t0.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+    while t < t1:
+        if t.hour % 6 == 0:
+            if t.hour == 0:
+                parts.append(f'<line class="daysep" x1="{x(t):.1f}" x2="{x(t):.1f}" y1="{T}" y2="{H - 4}"/>')
+            else:
+                parts.append(f'<line class="tick" x1="{x(t):.1f}" x2="{x(t):.1f}" y1="{T + ph}" y2="{T + ph + 4}"/>'
+                             f'<text class="ax" x="{x(t):.1f}" y="{T + ph + 13}" '
+                             f'text-anchor="middle">{t.hour} h</text>')
         t += timedelta(hours=1)
+    day = t0.replace(hour=0, minute=0, second=0, microsecond=0)
+    while day < t1:
+        a, b = max(day, t0), min(day + timedelta(days=1), t1)
+        if b - a >= timedelta(hours=6):  # un pedacito de día no lleva nombre (no entra)
+            parts.append(f'<text class="ax ax-day" x="{(x(a) + x(b)) / 2:.1f}" y="{H - 4}" '
+                         f'text-anchor="middle">{WEEKDAYS[day.weekday()]} {day.day}</text>')
+        day += timedelta(days=1)
     parts.append(f'<line class="nowl" x1="{x(now):.1f}" x2="{x(now):.1f}" y1="{T - 6}" y2="{T + ph}"/>'
                  f'<text class="ax now-t" x="{x(now):.1f}" y="{T - 8}" text-anchor="middle">ahora</text>')
     parts.append(f'<text class="ax" x="{L + 2}" y="{T - 8}">km/h</text>')
@@ -463,7 +475,7 @@ dd{margin:0;font-size:1.45rem;font-weight:750;font-variant-numeric:tabular-nums;
 .bar.l-bajo{fill:var(--ok)}.bar.l-medio{fill:var(--mid)}.bar.l-alto{fill:var(--hi)}.bar.l-nd{fill:var(--nd)}.bar.fc{opacity:.45}
 .susp{fill:var(--hi);opacity:.14}.susp-t{fill:var(--hi);font-weight:700}
 .ax{font-size:10px;fill:var(--muted)}.ax-day{font-weight:700;fill:var(--fg)}.ax-medio{fill:var(--mid);font-weight:700}.ax-alto{fill:var(--hi);font-weight:700}
-.tick{stroke:var(--line)}.nowl{stroke:var(--fg);stroke-width:1.2;stroke-dasharray:3 2;opacity:.7}.now-t{fill:var(--fg);font-weight:700}
+.tick{stroke:var(--line)}.daysep{stroke:var(--muted);stroke-width:.8;stroke-dasharray:2 3;opacity:.6}.nowl{stroke:var(--fg);stroke-width:1.2;stroke-dasharray:3 2;opacity:.7}.now-t{fill:var(--fg);font-weight:700}
 .legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.7rem;color:var(--muted);margin-top:4px}
 .legend span{display:inline-flex;align-items:center;gap:5px}
 .lg{width:10px;height:10px;border-radius:2px;display:inline-block}.lg-past{background:var(--ok)}.lg-fc{background:var(--ok);opacity:.45}
