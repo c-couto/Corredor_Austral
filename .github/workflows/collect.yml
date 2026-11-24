@@ -9,7 +9,7 @@ name: collect
 on:
   schedule:
     # Cada 30 minutos (minutos 7 y 37, para evitar el pico de las horas en punto).
-    - cron: "7,37 * * * *"
+    - cron: "20,50 * * * *"
   workflow_dispatch: {}
 
 permissions:

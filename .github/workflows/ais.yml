@@ -19,8 +19,10 @@
 name: ais
 
 on:
-  schedule:
-    - cron: "15,45 * * * *"   # lejos de collect (:01/:31 y :07/:37)
+  # Apagado el 24/11/2026: 0 posiciones en 64 h. Queda solo para correrlo a mano
+  # (Actions → ais → Run workflow). Para reactivarlo, volver a agregar:
+  #   schedule:
+  #     - cron: "15,45 * * * *"
   workflow_dispatch:
     inputs:
       minutos:
