@@ -1,0 +1,30 @@
+{
+ "fuente": "OpenStreetMap, vía 164993132 (cruce del canal Fitz Roy)",
+ "url": "https://api.openstreetmap.org/api/0.6/way/164993132/full.json",
+ "licencia": "ODbL 1.0 · © colaboradores de OpenStreetMap · https://www.openstreetmap.org/copyright",
+ "descargado_utc": "2026-11-24T22:30:00Z",
+ "nota": "En OSM la rampa del continente no tiene nombre: 'Villa Ponsomby' es como la llama el horario oficial de TABSA ('V. Ponsomby').",
+ "via": {
+  "id": 164993132,
+  "version": 3,
+  "nombre": "Cruce Canal Fitz Roy (Río Verde – Isla Riesco)",
+  "duracion": "00:05",
+  "duracion_fuente": "TABSA, tabsa.cl/rutas/crioverde-islariesco: 'de unos 400 metros, se realiza en aproximadamente cinco minutos'",
+  "desde": "Isla Riesco",
+  "hasta": "Villa Ponsomby"
+ },
+ "nodos": [
+  {
+   "id": 6294500944,
+   "lat": -52.654196,
+   "lon": -71.4698616,
+   "nombre": "Isla Riesco"
+  },
+  {
+   "id": 1765874221,
+   "lat": -52.6518224,
+   "lon": -71.4638205,
+   "nombre": "Villa Ponsomby"
+  }
+ ]
+}

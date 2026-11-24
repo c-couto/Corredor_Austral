@@ -1,5 +1,7 @@
-// Fuente HORARIO REAL (Punta Arenas – Porvenir): el ferry sigue los zarpes que publica TABSA
-// (los guarda nuestro recolector cada 30 min en data/auto/tabsa_programados.csv).
+// Fuente HORARIO REAL: el ferry sigue zarpes reales.
+//   Punta Arenas – Porvenir: los que publica TABSA en su página de estado (los guarda nuestro
+//   recolector cada 30 min en data/auto/tabsa_programados.csv).
+//   Río Verde – Isla Riesco: el horario oficial fijo (horario-fijo.js) con el estado de TABSA.
 // Real: hora de cada zarpe, origen/destino y su estado (si TABSA lo suspende, no sale).
 // Estimado: la posición durante el cruce (duración según OpenStreetMap) y el barco
 // (TABSA no publica cuál hace cada viaje).
@@ -15,9 +17,9 @@ const otro = (lado) => (lado === "inicio" ? "fin" : "inicio");
 /**
  * @param zarpes [{ sale, llega, desde: "inicio" | "fin", estado }] en ms UTC, ordenados por `sale`.
  */
-export function crearFuenteHorario(ruta, zarpes, { velocidad = 1, inicio = null, barco = FERRY_TABSA } = {}) {
+export function crearFuenteHorario(ruta, zarpes, { velocidad = 1, inicio = null, barco = FERRY_TABSA, maniobra } = {}) {
   const reloj = crearReloj({ velocidad, inicio });
-  const mov = crearMovimiento(ruta);
+  const mov = crearMovimiento(ruta, maniobra);
 
   function estado(t) {
     if (!zarpes.length) return null;
@@ -30,7 +32,7 @@ export function crearFuenteHorario(ruta, zarpes, { velocidad = 1, inicio = null,
     }
     const proximo = zarpes.find((z) => z.sale > t);
     if (!proximo) return mov.enRampa(barco, lado);
-    if (!normal(proximo)) return mov.enRampa(barco, lado, { suspendido: true });
+    if (!normal(proximo)) return mov.enRampa(barco, lado, { suspendido: true, estado_zarpe: proximo.estado });
     return mov.enRampa(barco, lado, { sale: proximo.sale });
   }
 

@@ -149,6 +149,7 @@ const ETIQUETAS_PA = [
 export function crearMapa(contenedor, ruta, {
   reducido = false, onSeleccion = () => {},
   etiquetas = ETIQUETAS_PA, anclas = ["bottom-right", "top-left"],
+  zoomCruce = 13, // zoom máximo al encuadrar el cruce (Río Verde, de ~500 m, necesita más)
 } = {}) {
   const limites = new maplibregl.LngLatBounds(ruta.inicio.punto, ruta.inicio.punto);
   ruta.puntos.forEach((p) => limites.extend(p));
@@ -159,9 +160,9 @@ export function crearMapa(contenedor, ruta, {
     container: contenedor,
     style: estilo(),
     bounds: limites,
-    fitBoundsOptions: { padding, maxZoom: 13 },
+    fitBoundsOptions: { padding, maxZoom: zoomCruce },
     minZoom: 6,
-    maxZoom: 15,
+    maxZoom: Math.max(15, zoomCruce + 1),
     dragRotate: false,
     pitchWithRotate: false,
     attributionControl: false,
@@ -322,7 +323,7 @@ export function crearMapa(contenedor, ruta, {
     get seleccionado() { return seleccionado; },
 
     volverAlCruce() {
-      map.fitBounds(limites, { padding, maxZoom: 13, duration: reducido ? 0 : 700 });
+      map.fitBounds(limites, { padding, maxZoom: zoomCruce, duration: reducido ? 0 : 700 });
     },
 
     /** Viento: de dónde VIENE (grados). Las olas van hacia el lado contrario. */

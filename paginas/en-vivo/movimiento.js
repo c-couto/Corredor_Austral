@@ -5,11 +5,11 @@
 import { rumbo as rumboEntre, mover } from "./ruta.js";
 
 export const NUDO = 0.514444; // m/s
-const RETROCESO_M = 55;       // cuánto se aleja de la rampa marcha atrás antes de girar
-const RETRO_S = 60;           // 1 min de marcha atrás
-const GIRO_S = 60;            // 1 min de giro de 180°
+const RETROCESO_DEF_M = 55;   // cuánto se aleja de la rampa marcha atrás antes de girar
+const RETRO_DEF_S = 60;       // 1 min de marcha atrás
+const GIRO_DEF_S = 60;        // 1 min de giro de 180°
 const ACEL = 0.12;            // fracción del tramo navegando que usa para acelerar / frenar
-const CRUCE_LATERAL_M = 70;   // al cruzarse, cada uno se corre a su estribor
+const LATERAL_DEF_M = 70;     // al cruzarse, cada uno se corre a su estribor
 
 const suave = (x) => x * x * (3 - 2 * x);
 
@@ -21,8 +21,17 @@ function avance(u) {
   return [vmax * (u - ACEL / 2), vmax];
 }
 
-export function crearMovimiento(ruta) {
+/**
+ * @param maniobra  valores propios del cruce (por defecto los de Primera Angostura):
+ *   { retroceso_m, retro_s, giro_s, lateral_m }. En un cruce corto (Río Verde, ~5 min)
+ *   la marcha atrás y el giro tienen que ser más cortos para que entren en el viaje.
+ */
+export function crearMovimiento(ruta, maniobra = {}) {
   const L = ruta.largo;
+  const RETROCESO_M = maniobra.retroceso_m ?? RETROCESO_DEF_M;
+  const RETRO_S = maniobra.retro_s ?? RETRO_DEF_S;
+  const GIRO_S = maniobra.giro_s ?? GIRO_DEF_S;
+  const CRUCE_LATERAL_M = maniobra.lateral_m ?? LATERAL_DEF_M;
   // "A la derecha" de la dirección inicio → fin; atraque_m corre el muelle a lo largo de la costa.
   const puntoRuta = (d, lateral) => mover(ruta.punto(d), ruta.rumbo(d) + 90, lateral);
   const proaEnRampa = (lado) => (lado === "fin" ? ruta.rumbo(L) : (ruta.rumbo(0) + 180) % 360);
@@ -87,5 +96,6 @@ export function registro(barco, e, t) {
   if (e.sale) r.sale_utc = new Date(e.sale).toISOString();
   if (e.llega) r.llega_utc = new Date(e.llega).toISOString();
   if (e.suspendido) r.suspendido = true;
+  if (e.estado_zarpe) r.estado_zarpe = e.estado_zarpe; // la palabra de TABSA: SUSPENDIDO, CANCELADO...
   return r;
 }

@@ -25,11 +25,21 @@ export function situacion(reg, ruta, ahoraMs, { suspendido = false } = {}) {
   const v = reg.velocidad_nudos || 0;
   if (desvio > 1500) return { fase: "fuera", texto: "Fuera de la ruta del cruce", eta: null };
 
-  const cercaInicio = d < EN_RAMPA_M, cercaFin = ruta.largo - d < EN_RAMPA_M;
+  // En un cruce corto (Río Verde, ~490 m) las distancias se achican: si no, el ferry estaría
+  // "en rampa" o "zarpando" durante todo el viaje.
+  const enRampaM = Math.min(EN_RAMPA_M, ruta.largo * 0.2);
+  const maniobraM = Math.min(MANIOBRA_M, ruta.largo * 0.25);
+  const cercaInicio = d < enRampaM, cercaFin = ruta.largo - d < enRampaM;
   if (v < 1 && (cercaInicio || cercaFin)) {
     const lado = cercaInicio ? ruta.inicio.nombre : ruta.fin.nombre;
     if (suspendido) return { fase: "rampa", texto: `En rampa ${lado} · cruce suspendido`, eta: null };
-    if (reg.suspendido) return { fase: "rampa", texto: `En rampa ${lado} · próximo zarpe suspendido`, eta: null };
+    if (reg.suspendido) {
+      const como = (reg.estado_zarpe || "suspendido").toLowerCase();
+      return { fase: "rampa", texto: `En rampa ${lado} · próximo zarpe ${como}`, eta: null };
+    }
+    if (!reg.sale_utc && reg.llega_utc) { // es la hora del zarpe: arranca a soltar la rampa
+      return { fase: "zarpando", texto: `Zarpando de ${lado}`, eta: `llega en ~${enMin(Date.parse(reg.llega_utc) - ahoraMs)} min` };
+    }
     if (!reg.sale_utc) return { fase: "rampa", texto: `En rampa ${lado}`, eta: null };
     const sale = Date.parse(reg.sale_utc);
     const falta = sale - ahoraMs;
@@ -51,8 +61,8 @@ export function situacion(reg, ruta, ahoraMs, { suspendido = false } = {}) {
     ? enMin(Date.parse(reg.llega_utc) - ahoraMs)
     : enMin((restante / (Math.max(v, 3) * NUDO)) * 1000);
   const eta = `llega en ~${min} min`;
-  if (recorrido < MANIOBRA_M) return { fase: "zarpando", texto: `Zarpando de ${origen}`, eta };
-  if (restante < MANIOBRA_M) return { fase: "atracando", texto: `Atracando en ${destino}`, eta };
+  if (recorrido < maniobraM) return { fase: "zarpando", texto: `Zarpando de ${origen}`, eta };
+  if (restante < maniobraM) return { fase: "atracando", texto: `Atracando en ${destino}`, eta };
   return { fase: "cruzando", texto: `Cruzando hacia ${destino}`, eta };
 }
 

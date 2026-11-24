@@ -7,14 +7,17 @@
 //   ?ferry=MMSI     abre con ese ferry seleccionado
 //   ?hora=HH:MM     arranca la simulación a esa hora local de hoy (p. ej. para ver
 //                   ferris cruzando de noche, cuando con el horario real están en rampa)
-//   ?cruce=pap      Punta Arenas – Porvenir (horario real de TABSA); sin esto, Primera Angostura
+//   ?cruce=pap      Punta Arenas – Porvenir (zarpes reales que publica TABSA)
+//   ?cruce=rv       Río Verde – Isla Riesco (horario oficial fijo de TABSA + estado de TABSA)
+//   sin ?cruce      Primera Angostura (simulación: TABSA no publica un horario)
 
 import { Ruta } from "./ruta.js";
 import { crearFuenteSimulada, hoyALas } from "./fuente-simulada.js";
 import { crearFuenteHorario } from "./fuente-horario.js";
+import { zarpesDelHorario, aplicarEstado } from "./horario-fijo.js";
 import { crearMapa, naviera } from "./mapa.js";
 import { situacion, cardinal, horaLocal } from "./situacion.js";
-import { estadoTabsa, vientoPuntaDelgada, zarpesTabsa } from "./estado.js";
+import { estadoTabsa, lecturasTabsa, vientoPuntaDelgada, zarpesTabsa } from "./estado.js";
 
 const $ = (s) => document.querySelector(s);
 const params = new URLSearchParams(location.search);
@@ -31,6 +34,9 @@ const CRUCES = {
     datos: "datos/cruce-punta-arenas-porvenir.json",
     chip: "Horario real TABSA · posición estimada",
     viento: "punta_arenas",
+    // TABSA (tabsa.cl, ruta Punta Arenas – Porvenir): "Duración del viaje: 2 horas aproximadamente".
+    // Manda sobre los 02:20 que figuran en OpenStreetMap.
+    duracion_min: 120,
     anclas: ["left", "top-left"],
     etiquetas: [
       { t: "Estrecho de Magallanes", k: "agua", c: [-70.74, -53.25], rot: -28 },
@@ -39,8 +45,37 @@ const CRUCES = {
     nota: "Horarios y estado de cada zarpe: los publicados por TABSA. La posición del ferry durante el cruce " +
       "es una estimación según ese horario (no hay señal AIS en la zona). Ante la duda, confirmá con TABSA.",
   },
+  rv: {
+    datos: "datos/cruce-rio-verde.json",
+    horario: "datos/horario-rio-verde.json",  // horario oficial TABSA por temporada y día
+    tabsa: "rio_verde",                       // estado oficial del cruce (tabsa_estado.csv)
+    chip: "Horario oficial TABSA · posición estimada",
+    viento: "rio_verde",
+    duracion_min: 5,                          // TABSA: "aproximadamente cinco minutos"
+    zoom: 16,
+    barco: { mmsi: "tabsa-rv", nombre: "Bahía Azul", naviera: "TABSA", atraque_m: 0 },
+    // Cruce de ~500 m en 5 min: marcha atrás y giro cortos; un solo ferry, no hace falta abrirse.
+    maniobra: { retroceso_m: 35, retro_s: 30, giro_s: 45, lateral_m: 0 },
+    anclas: ["top-right", "bottom-right"], // nombres fuera del lado donde queda el ferry atracado
+    etiquetas: [
+      { t: "Canal Fitz Roy", k: "agua", c: [-71.4652, -52.6548], rot: 60 },
+      { t: "ISLA\nRIESCO", k: "tierra", c: [-71.4711, -52.6530], rot: 0 },
+    ],
+    nota: "Zarpes: el horario oficial de TABSA (temporada y día de la semana). Si TABSA informa el cruce " +
+      "suspendido, el ferry no sale. La posición durante el cruce es una estimación (no hay señal AIS en la " +
+      "zona). Ante la duda, confirmá con TABSA: (61) 272 8100.",
+  },
 };
-const cruce = params.get("cruce") === "pap" ? "pap" : "pa";
+const cruce = ["pap", "rv"].includes(params.get("cruce")) ? params.get("cruce") : "pa";
+const conHorario = cruce !== "pa"; // pap y rv siguen zarpes reales; pa es simulado
+
+/** Río Verde: zarpes del horario oficial (ayer, hoy y 2 días más) con el estado de TABSA de cada momento. */
+async function zarpesHorarioFijo(cfg, ruta, horario, desdeMs) {
+  const zarpes = zarpesDelHorario(horario, ruta, desdeMs, { dias: 3, duracionMin: cfg.duracion_min });
+  const lecturas = await lecturasTabsa(cfg.tabsa);
+  aplicarEstado(zarpes, lecturas);
+  return { zarpes, leido: lecturas && lecturas.length ? lecturas[lecturas.length - 1].ts : null };
+}
 const minutosDe = (hhmm) => { const m = /^(\d{1,2}):(\d\d)$/.exec(hhmm || ""); return m ? +m[1] * 60 + +m[2] : null; };
 
 function haceTexto(ms) {
@@ -201,14 +236,19 @@ async function iniciar() {
   const hora = /^\d{1,2}:\d{2}$/.test(params.get("hora") || "") ? params.get("hora") : null;
   const opciones = { velocidad: Number(params.get("velocidad")) || 1, inicio: hora ? hoyALas(hora) : null };
   let fuente;
-  if (cruce === "pap") {
-    const duracion = minutosDe(datos.via?.duracion) || 140;
-    const leidos = await zarpesTabsa(ruta, duracion);
-    fuente = crearFuenteHorario(ruta, leidos ? leidos.zarpes : [], opciones);
+  if (conHorario) {
+    const duracion = cfg.duracion_min || minutosDe(datos.via?.duracion) || 140;
+    const horario = cfg.horario ? await (await fetch(cfg.horario)).json() : null;
+    // Hora de referencia para armar los días del horario fijo: la de la simulación (?hora=, ×20).
+    const leer = (t) => (horario ? zarpesHorarioFijo(cfg, ruta, horario, t) : zarpesTabsa(ruta, duracion));
+    const leidos = await leer(opciones.inicio ?? Date.now());
+    fuente = crearFuenteHorario(ruta, leidos ? leidos.zarpes : [], {
+      ...opciones, ...(cfg.barco ? { barco: cfg.barco } : {}), ...(cfg.maniobra ? { maniobra: cfg.maniobra } : {}),
+    });
     fuente.leido = leidos?.leido || null;
-    // Cada 5 min se vuelve a leer el horario (TABSA puede suspender o agregar zarpes).
+    // Cada 5 min se vuelve a leer (TABSA puede suspender o agregar zarpes; a medianoche cambia el día).
     setInterval(async () => {
-      const nuevos = await zarpesTabsa(ruta, duracion);
+      const nuevos = await leer(fuente.ahora());
       if (nuevos) { fuente.zarpes.splice(0, fuente.zarpes.length, ...nuevos.zarpes); fuente.leido = nuevos.leido; }
     }, 5 * 60 * 1000);
   } else {
@@ -224,6 +264,7 @@ async function iniciar() {
   const mapa = crearMapa($("#mapa"), ruta, {
     reducido, onSeleccion: seleccionar,
     ...(cfg.etiquetas ? { etiquetas: cfg.etiquetas } : {}), ...(cfg.anclas ? { anclas: cfg.anclas } : {}),
+    ...(cfg.zoom ? { zoomCruce: cfg.zoom } : {}),
   });
   $("#btn-centrar").addEventListener("click", () => mapa.volverAlCruce());
 
@@ -238,10 +279,10 @@ async function iniciar() {
   let regs = fuente.leer();
   const refrescarLista = () => actualizarLista(regs, ruta, fuente, seleccionado, seleccionar);
   const pedido = params.get("ferry"); // ?ferry=MMSI abre la pantalla con ese ferry seleccionado
-  const inicial = cruce === "pap" ? (pedido || null) : (Number(pedido) || null);
+  const inicial = conHorario ? (pedido || null) : (Number(pedido) || null);
   if (inicial) mapa.map.once("load", () => requestAnimationFrame(() => seleccionar(inicial)));
 
-  if (cruce === "pap") {
+  if (conHorario) {
     pintarHorario(fuente);
     setInterval(() => pintarHorario(fuente), 30 * 1000);
     if (!fuente.zarpes.length) $("#lista").innerHTML = "<li class='nota'>TABSA no tiene zarpes publicados para estos días.</li>";

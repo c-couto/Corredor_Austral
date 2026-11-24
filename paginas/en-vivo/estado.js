@@ -48,6 +48,20 @@ export async function estadoTabsa(cruce = "primera_angostura") {
   }
 }
 
+/**
+ * Lecturas recientes del estado oficial de un cruce (unos 2 días), en orden: [{ ts, status }].
+ * Sirven para saber qué informaba TABSA a la hora de cada zarpe. null si no se pudo leer.
+ */
+export async function lecturasTabsa(cruce) {
+  try {
+    const filas = (await ultimasFilas("tabsa_estado.csv", 24000)).filter((f) => f.crossing === cruce && f.status);
+    return filas.map((f) => ({ ts: Date.parse(f.ts_utc), status: f.status.trim() }))
+      .filter((l) => !Number.isNaN(l.ts)).sort((a, b) => a.ts - b.ts);
+  } catch {
+    return null;
+  }
+}
+
 const puerto = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 
 /**
