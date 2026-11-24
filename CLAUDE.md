@@ -28,14 +28,16 @@ Sabemos algo de programación: entendemos el código si lo vemos, pero no escrib
 - **Mapas**: OpenFreeMap + MapLibre (gratis, uso comercial permitido, crédito obligatorio a
   OpenStreetMap). Nada de imágenes satelitales que prohíban el uso comercial.
 - Nunca copiar datos de sitios de terceros (MarineTraffic, VesselFinder…): sus condiciones
-  lo prohíben. Las posiciones AIS en vivo de la zona solo existen por satélite (pago).
+  lo prohíben. Con los servicios gratuitos no hay cobertura AIS en la zona; las opciones son
+  satélite (pago) o una antena propia (plan B).
 
 ## Cómo funciona hoy (v0.4.0, 24/11/2026)
 - **Recolección** (`.github/workflows/collect.yml`, un trabajo de ~1 min, límite 6 min):
   estado de TABSA, clima de 8 puntos + pronóstico horario, oleaje, reentrenamiento diario del
   modelo (00:01 UTC), commit de `data/auto/` y `data/model/`, y aviso por Telegram.
   - La dispara **cron-job.org a los :05 y :35** (vía `workflow_dispatch`). El `schedule` de
-    GitHub (`7,37 * * * *`) es solo respaldo: GitHub lo saltea o lo atrasa seguido.
+    GitHub (`20,50 * * * *`) es solo respaldo: GitHub lo saltea o lo atrasa seguido; está a
+    mitad de camino para no duplicar la lectura de cron-job.org.
   - El token que usa cron-job.org vence el **17/12/2026**.
   - **No renombrar `collect.yml`**: cron-job.org lo dispara por ese nombre.
 - **Repo PÚBLICO**: los minutos de Actions no gastan cupo. **Si vuelve a privado, apagar
@@ -70,10 +72,12 @@ Sabemos algo de programación: entendemos el código si lo vemos, pero no escrib
     cruce es estimada.
   - Regla: **nunca mostrar ferris cruzando si TABSA dice suspendido o cancelado** (la pantalla ya
     lo respeta; el minimapa de la página principal todavía no).
-- **AIS** (`ais/`, `.github/workflows/ais.yml`): escucha aisstream.io 10 min a los :15 y :45 y
-  guarda en la **rama `datos-ais`, nunca en `main`**. Al 24/11: 127 sesiones (~21 h de escucha
-  en 64 h distintas) y **0 posiciones** → aisstream no cubre la zona. Plan B: antena AIS propia
-  en Punta Delgada / Bahía Azul (~100 USD). Clave en el Secret `AISSTREAM_API_KEY`.
+- **AIS** (`ais/`, `.github/workflows/ais.yml`): escuchaba aisstream.io 10 min a los :15 y :45
+  y guardaba en la **rama `datos-ais`, nunca en `main`**. Al 24/11: 127 sesiones (~21 h de
+  escucha en 64 h distintas) y **0 posiciones** → aisstream no cubre la zona.
+  **Apagado el 24/11/2026**: `ais.yml` quedó solo con `workflow_dispatch` (se puede correr a
+  mano) y se desactivó su trabajo en cron-job.org. El código y los datos quedan. Plan B: antena
+  AIS propia en Punta Delgada / Bahía Azul (~100 USD). Clave en el Secret `AISSTREAM_API_KEY`.
 
 ## Datos
 CSV, uno por tabla; diccionario completo en la sección "Datos" del `README.md`.
