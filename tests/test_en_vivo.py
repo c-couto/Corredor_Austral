@@ -84,7 +84,7 @@ class AccesoDesdeLaWebTest(unittest.TestCase):
             html = web.render(conditions.snapshot(now=now, fetch_forecast=False), now=now)
         finally:
             t.doCleanups()
-        self.assertIn('href="en-vivo/"', html)
+        self.assertIn('href="en-vivo/index.html"', html)
         self.assertIn("Ver ferris en vivo", html)
         self.assertIn("demo", html)  # se avisa que es una demo
 
