@@ -106,6 +106,7 @@ class Snapshot:
     forecast_source: str | None
     now: datetime
     current_weather: dict[str, dict] = field(default_factory=dict)  # clima del momento por lugar
+    operation: list["Operation"] = field(default_factory=list)      # cómo operó cada cruce (7 días)
 
     def is_stale(self, now: datetime | None = None) -> bool:
         if self.latest is None:
@@ -191,6 +192,61 @@ def _episodes(state_rows: list[dict], names: dict[str, str]) -> list[Episode]:
     return sorted(episodes, key=lambda e: e.start, reverse=True)
 
 
+@dataclass
+class Operation:
+    """Cómo operó un cruce en los últimos días, SOLO con lo que publicó TABSA.
+
+    Cruces con estado (Primera Angostura, Río Verde): tiempo suspendido según las lecturas
+    de cada 30 min. Cruces con horario (Punta Arenas – Porvenir): zarpes realizados vs.
+    cancelados o suspendidos (cada zarpe una vez, con el último estado que publicó TABSA).
+    """
+    key: str
+    name: str
+    since: datetime          # desde cuándo se cuenta (7 días o desde la primera lectura)
+    ok_share: float          # 0..1: parte del tiempo (o de los zarpes) en que operó normal
+    events: int              # suspensiones (o zarpes no realizados)
+    down: timedelta | None = None   # tiempo total suspendido (cruces con estado)
+    total: int | None = None        # zarpes contados (cruces con horario)
+
+
+def _operation(now: datetime, state_rows: list[dict], sailing_rows: list[dict],
+               episodes: list[Episode], days: int = 7) -> list[Operation]:
+    out: list[Operation] = []
+    start = now - timedelta(days=days)
+    for key, cfg in config.ROUTES.items():
+        if cfg.get("scheduled"):
+            last: dict[tuple[str, str, str], tuple[datetime, str]] = {}
+            for r in sailing_rows:
+                if not model.is_route_sailing(r, key) or not r.get("date") or not r.get("departure"):
+                    continue
+                dep = local_to_utc(r["date"], r["departure"])
+                if start <= dep <= now:
+                    last[(r["date"], r["departure"], r["origin"])] = (dep, r["status"])
+            if last:
+                bad = sum(1 for _, st in last.values() if not is_normal(st))
+                first = min(dep for dep, _ in last.values())
+                out.append(Operation(key, cfg["name"], first, 1 - bad / len(last), bad, total=len(last)))
+            continue
+        tabsa = cfg.get("tabsa")
+        stamps = [parse_ts(r["ts_utc"]) for r in state_rows if r["crossing"] == tabsa and r["status"]]
+        if not stamps:
+            continue
+        since = max(start, min(stamps))
+        span = now - since
+        if span <= timedelta(0):
+            continue
+        down, events = timedelta(0), 0
+        for e in episodes:
+            if e.subject != tabsa:
+                continue
+            a, b = max(e.start, since), min(e.end or now, now)
+            if b > a:
+                down += b - a
+                events += 1
+        out.append(Operation(key, cfg["name"], since, max(0.0, 1 - down / span), events, down=down))
+    return out
+
+
 def snapshot(now: datetime | None = None, fetch_forecast: bool = True) -> Snapshot:
     now = now or datetime.now(timezone.utc)
     models = model.load()
@@ -274,13 +330,15 @@ def snapshot(now: datetime | None = None, fetch_forecast: bool = True) -> Snapsh
         current_weather.setdefault(p, {k: num(row.get(k)) for k in
                                        ("temp_c", "wind_kmh", "gust_kmh", "wind_dir_deg", "precip_mm")})
 
+    episodes = _episodes(state_rows, names)
     return Snapshot(
         routes=routes,
         places=places,
         latest=parse_ts(weather_runs[-1][0]) if weather_runs else None,
         tabsa_latest=parse_ts(state_rows[-1]["ts_utc"]) if state_rows else None,
         sailings=sailings,
-        episodes=_episodes(state_rows, names),
+        episodes=episodes,
+        operation=_operation(now, state_rows, sailing_rows, episodes),
         heat=dict(heat),
         tabsa_days=len(days),
         tabsa_samples=sum(c[0] for c in heat.values()),

@@ -179,25 +179,25 @@ def _chart(snap: Snapshot, st: RouteStatus) -> str:
         return T + ph - min(g, top) / top * ph
 
     parts = []
-    # Zonas de fondo: normal / puede suspenderse / probable suspensión.
-    edges = [0.0] + [t if t else top for t in thr] + [top]
-    for (lo, hi), name in zip(zip(edges, edges[1:]), ("bajo", "medio", "alto")):
-        if hi > lo:
-            parts.append(f'<rect class="z z-{name}" x="{L}" y="{y(hi):.1f}" width="{pw}" height="{y(lo) - y(hi):.1f}"/>')
+    # Sin fondos de color: el color ya está en cada barra. Solo las dos líneas de umbral.
     for t, (_, name) in zip(thr, limits):
         if t and t < top:
             parts.append(f'<line class="thl t-{name}" x1="{L}" x2="{W - R}" y1="{y(t):.1f}" y2="{y(t):.1f}"/>'
                          f'<text class="ax ax-{name}" x="{L - 4}" y="{y(t) + 3:.1f}" text-anchor="end">{t:.0f}</text>')
     parts.append(f'<text class="ax" x="{L - 4}" y="{y(0) + 3:.1f}" text-anchor="end">0</text>'
                  f'<text class="ax" x="{L - 4}" y="{y(top) + 3:.1f}" text-anchor="end">{top:.0f}</text>')
-    # Períodos en que TABSA tuvo el cruce suspendido.
+    # Períodos en que TABSA tuvo el cruce suspendido: franja de fondo, sin texto encima
+    # (se explica en la leyenda; con dos suspensiones cerca los textos se pisaban).
+    had_closure = False
     for e in snap.episodes:
         if e.name != st.name:
             continue
         s, f = max(e.start, start), min(e.end or now, start + span)
         if f > s:
-            parts.append(f'<rect class="susp" x="{x(s):.1f}" y="{T}" width="{max(2, x(f) - x(s)):.1f}" height="{ph}"/>'
-                         f'<text class="ax susp-t" x="{x(s) + 2:.1f}" y="{T + 9}">TABSA: suspendido</text>')
+            had_closure = True
+            parts.append(f'<rect class="susp" x="{x(s):.1f}" y="{T}" width="{max(2, x(f) - x(s)):.1f}" height="{ph}">'
+                         f'<title>TABSA: {escape(e.status.lower())} {fmt_local(e.start, "%H:%M")}–'
+                         f'{fmt_local(e.end, "%H:%M") if e.end else "sigue"}</title></rect>')
     # Barras: medidas (sólidas) y pronóstico (más claras).
     bw = slot * 0.72
     for hour, g in sorted(past.items()):
@@ -241,9 +241,10 @@ def _chart(snap: Snapshot, st: RouteStatus) -> str:
     return f"""<figure class="chartbox">
     <svg class="chart" viewBox="0 0 {W} {H}" role="img" aria-label="{escape(label)}">{"".join(parts)}</svg>
     <figcaption class="legend">
-      <span><i class="lg lg-past"></i>Medido</span><span><i class="lg lg-fc"></i>Pronóstico (más claro)</span>
-      <span><i class="lg lg-bajo"></i>Zona normal</span><span><i class="lg lg-medio"></i>Puede suspenderse</span>
-      <span><i class="lg lg-alto"></i>Probable suspensión</span>
+      <span><i class="lg lg-past"></i>Medido</span><span><i class="lg lg-fc"></i>Pronóstico</span>
+      {'<span><i class="lg lg-susp"></i>Suspendido (TABSA)</span>' if had_closure else ""}
+      <span class="lg-colors"><i class="dot d-bajo"></i>normal <i class="dot d-medio"></i>puede suspenderse
+      <i class="dot d-alto"></i>probable</span>
     </figcaption></figure>"""
 
 
@@ -257,20 +258,50 @@ def _windows(snap: Snapshot, st: RouteStatus) -> str:
     for first, last, worst in wins[:3]:
         end = last.t + timedelta(hours=1)
         what = "Probable suspensión" if worst == "alto" else "Puede suspenderse"
-        items.append(f'<li class="w-{worst}"><b>{what}</b> {_day_label(first.t, snap.now)} '
-                     f'{fmt_local(first.t, "%H:%M")}–{fmt_local(end, "%H:%M")}</li>')
+        d1, d2 = _day_label(first.t, snap.now), _day_label(end, snap.now)
+        if to_local(end).hour == 0 and to_local(end).minute == 0 and d1 != d2:  # termina a medianoche
+            span_txt = f'{d1} {fmt_local(first.t, "%H:%M")}–24:00'
+        elif d1 == d2:
+            span_txt = f'{d1} {fmt_local(first.t, "%H:%M")}–{fmt_local(end, "%H:%M")}'
+        else:
+            span_txt = f'{d1} {fmt_local(first.t, "%H:%M")} → {d2} {fmt_local(end, "%H:%M")}'
+        items.append(f'<li class="w-{worst}"><b>{what}</b> {span_txt}</li>')
     return f'<ul class="wins" aria-label="Horarios con posible suspensión">{"".join(items)}</ul>'
+
+
+def _closed_phrase(snap: Snapshot, st: RouteStatus, status: str) -> str:
+    """Una sola frase (HTML) cuando TABSA informa el cruce no normal: qué pasa y desde cuándo."""
+    word = escape(status.strip().lower())
+    if config.ROUTES[st.key].get("scheduled"):
+        nxt = snap.next_sailing()
+        if nxt:
+            return (f"TABSA: zarpe de las {escape(nxt.departure)} {word} "
+                    f"<small>({escape(nxt.origin)} → {escape(nxt.destination)})</small>")
+        return f"TABSA: {word}"
+    tabsa = config.ROUTES[st.key].get("tabsa")
+    ep = next((e for e in snap.episodes if e.subject == tabsa and e.end is None), None)
+    if not ep:
+        return f"TABSA: {word}"
+    since = fmt_local(ep.start, "%H:%M")
+    day = "" if _day_label(ep.start, snap.now) == "hoy" else f"{_day_label(ep.start, snap.now)} "
+    return (f'TABSA: {word} desde {day}las {since} '
+            f'<small>(hace <span data-ago="{format_ts(ep.start)}">{fmt_duration(snap.now - ep.start)}</span>)</small>')
 
 
 def _route_card(snap: Snapshot, st: RouteStatus) -> str:
     lvl, phrase = verdict(snap, st)
+    status, _ = snap.official_for(st)
+    closed = bool(status) and is_normal(status) is False
+    # Con el cruce ya suspendido por TABSA no se repite la palabra ni se muestra "probabilidad de
+    # suspensión": se dice desde cuándo, y el gráfico y las ventanas muestran cuándo baja el viento.
+    line = _closed_phrase(snap, st, status) if closed else escape(phrase)
     return f"""
 <article class="card route lvl-{lvl}">
   <header>
-    <div><h2>{escape(st.name)}</h2><p class="muted small">{escape(st.detail)}</p>{_official(snap, st)}</div>
-    {_gauge(st)}
+    <div><h2>{escape(st.name)}</h2><p class="muted small">{escape(st.detail)}</p>{"" if closed else _official(snap, st)}</div>
+    {"" if closed else _gauge(st)}
   </header>
-  <p class="verdict v-{lvl}"><i></i>{escape(phrase)}</p>
+  <p class="verdict v-{lvl}"><i></i><span>{line}</span></p>
   {_wind(st)}
   {_chart(snap, st)}
   {_windows(snap, st)}
@@ -313,27 +344,70 @@ def _sailings(snap: Snapshot) -> str:
         rows.append(
             f'<tr><td><b>{escape(s.departure)}</b><br><span class="muted small">{escape(s.date[8:10])}/{escape(s.date[5:7])}</span></td>'
             f'<td>{escape(s.origin)} → {escape(s.destination)}</td>'
-            f'<td><span class="off off-{"ok" if ok else "bad"}"><i></i>{escape(s.status)}</span></td>'
+            # Normal: solo un ✓ (no repetir "NORMAL" en cada fila); la palabra, cuando NO es normal.
+            + (f'<td><span class="tick-ok" title="TABSA: {escape(s.status.lower())}">✓</span></td>' if ok else
+               f'<td><span class="off off-bad"><i></i>{escape(s.status)}</span></td>') +
             f'<td><span class="pill b-{_lvl(s.p)}">{pct(s.p)}</span></td></tr>')
     return f"""
 <section class="card">
   <h2>Próximos zarpes Punta Arenas ↔ Porvenir</h2>
   <table><thead><tr><th>Zarpe</th><th>Sentido</th><th>TABSA</th><th>Prob. susp.</th></tr></thead>
   <tbody>{"".join(rows)}</tbody></table>
-  <p class="muted small">Estado oficial según TABSA. "Prob. susp.": nuestra estimación de que ese zarpe se
+  <p class="muted small">✓ = TABSA lo informa normal. "Prob. susp.": nuestra estimación de que ese zarpe se
   suspenda por viento.</p>
 </section>"""
 
 
+def _donut(share: float) -> str:
+    """Torta (anillo) con la parte habilitada en verde y el resto en rojo."""
+    r, c = 26, 2 * math.pi * 26
+    ok = max(0.0, min(1.0, share))
+    pct_txt = ">99" if 0.99 < ok < 1 else f"{ok * 100:.0f}"
+    return (f'<svg class="donut" viewBox="0 0 64 64" aria-hidden="true">'
+            f'<circle cx="32" cy="32" r="{r}" class="dn-bad"/>'
+            f'<circle cx="32" cy="32" r="{r}" class="dn-ok" stroke-dasharray="{ok * c:.2f} {c:.2f}" '
+            f'transform="rotate(-90 32 32)"/>'
+            f'<text x="32" y="36" text-anchor="middle">{pct_txt}%</text></svg>')
+
+
+def _operation(snap: Snapshot) -> str:
+    """Cómo operó cada cruce en los últimos 7 días, con lo que publicó TABSA."""
+    if not snap.operation:
+        return ""
+    items = []
+    for op in snap.operation:
+        if op.total is not None:  # cruce con horario: zarpes
+            what = "de los zarpes salieron normal"
+            detail = (f"{op.total - op.events} de {op.total} · {op.events} cancelado{'s' if op.events != 1 else ''}"
+                      if op.events else f"los {op.total} zarpes")
+        else:
+            what = "del tiempo habilitado"
+            detail = (f"{op.events} suspensi{'ones' if op.events != 1 else 'ón'} · {fmt_duration(op.down)} en total"
+                      if op.events else "sin suspensiones")
+        items.append(f'<li>{_donut(op.ok_share)}<div><b>{escape(op.name)}</b>'
+                     f'<span>{what}</span><small>{detail}</small></div></li>')
+    first = min(op.since for op in snap.operation)
+    period = ("últimos 7 días" if snap.now - first >= timedelta(days=6, hours=23)
+              else f"desde el {fmt_local(first, '%d/%m')}")
+    return (f'<h3>Cómo operaron · {period}</h3><ul class="ops">{"".join(items)}</ul>'
+            f'<p class="muted small">Según el estado que publica TABSA (lo leemos cada 30 min). Las cancelaciones '
+            f'pueden ser por cualquier motivo, no solo viento.</p>')
+
+
 def _history(snap: Snapshot) -> str:
     items = []
-    for e in snap.episodes[:8]:
-        end = f"→ {fmt_local(e.end)}" if e.end else '<b class="live">en curso</b>'
-        items.append(f'<li><span class="off off-bad"><i></i>{escape(e.status)}</span> <b>{escape(e.name)}</b> · '
-                     f'{fmt_local(e.start)} {end} · <b>{fmt_duration(e.duration(snap.now))}</b></li>')
-    episodes = (f'<ul class="episodes">{"".join(items)}</ul>' if items
+    for e in snap.episodes[:6]:
+        end = f"→ {_day_label(e.end, snap.now)} {fmt_local(e.end, '%H:%M')}" if e.end else '<b class="live">sigue</b>'
+        other = "" if e.status.strip().upper() == "SUSPENDIDO" else f' <span class="muted">({escape(e.status.lower())})</span>'
+        items.append(f'<li class="{"ep-live" if not e.end else ""}"><b>{escape(e.name)}</b>{other}'
+                     f'<span>{_day_label(e.start, snap.now)} {fmt_local(e.start, "%H:%M")} {end}</span>'
+                     f'<b class="dur">{fmt_duration(e.duration(snap.now))}</b></li>')
+    episodes = (f'<h3>Suspensiones registradas</h3><ul class="episodes">{"".join(items)}</ul>' if items
                 else '<p class="muted small">Sin suspensiones registradas desde que empezamos a medir.</p>')
-    if snap.tabsa_days >= 7:
+    # El mapa de días y horas solo aparece cuando hay suficientes suspensiones para que diga algo.
+    pa_events = sum(1 for e in snap.episodes if e.subject == "primera_angostura")
+    heat = ""
+    if snap.tabsa_days >= 7 and pa_events >= 5:
         head = "".join(f"<th>{h:02d}</th>" if h % 3 == 0 else "<th></th>" for h in range(24))
         body = []
         for d, name in enumerate(WEEKDAYS):
@@ -348,13 +422,13 @@ def _history(snap: Snapshot) -> str:
         heat = (f'<h3>¿Cuándo se suspende? Primera Angostura</h3><div class="heatwrap"><table class="heat">'
                 f'<thead><tr><th></th>{head}</tr></thead><tbody>{"".join(body)}</tbody></table></div>'
                 f'<p class="muted small">Más oscuro = más veces suspendido en ese día y hora (hora local).</p>')
-    else:
+    elif snap.tabsa_days < 7:
         heat = (f'<div class="progress"><span style="width:{min(100, round(snap.tabsa_days / 7 * 100))}%"></span></div>'
-                f'<p class="muted small">Construyendo el historial que TABSA no guarda: {snap.tabsa_days} de 7 días '
-                f'({snap.tabsa_samples} lecturas). Con una semana aparece el mapa de días y horas.</p>')
+                f'<p class="muted small">Construyendo el historial que TABSA no guarda: {snap.tabsa_days} de 7 días.</p>')
     return f"""
 <section class="card">
-  <h2>Historial de suspensiones</h2>
+  <h2>Historial</h2>
+  {_operation(snap)}
   {episodes}
   {heat}
 </section>"""
@@ -366,10 +440,25 @@ def _method(snap: Snapshot) -> str:
         m = st.model
         tag = ('<span class="pill b-bajo">aprendido</span>' if m.kind == "trained"
                else '<span class="pill b-nd">regla base</span>')
-        extra = ""
-        if m.metrics.get("auc_modelo") is not None:
-            extra = f' · acierta el orden en el {round(m.metrics["auc_modelo"] * 100)} % de los casos'
-        rows.append(f"<li><b>{escape(st.name)}</b> {tag}<br><span class='muted small'>{escape(m.reason)}{extra}</span></li>")
+        if m.kind == "trained":
+            extra = ""
+            if m.metrics.get("auc_modelo") is not None:
+                extra = f' · acierta el orden en el {round(m.metrics["auc_modelo"] * 100)} % de los casos'
+            why = f"{escape(m.reason)}{extra}"
+        else:
+            # Lo que cuenta es cuántas suspensiones REALES tenemos registradas (no las lecturas de
+            # la última vez que se entrenó, que confundían: decía 0 el mismo día de un temporal).
+            tabsa = config.ROUTES[st.key].get("tabsa")
+            if tabsa:
+                n = sum(1 for e in snap.episodes if e.subject == tabsa)
+                what = f"{n} suspensi{'ón' if n == 1 else 'ones'} registrada{'' if n == 1 else 's'}"
+            else:
+                op = next((o for o in snap.operation if o.key == st.key), None)
+                n = op.events if op else 0
+                what = f"{n} zarpe{'' if n == 1 else 's'} cancelado{'' if n == 1 else 's'} en 7 días"
+            why = (f"Por ahora usa la regla base (ráfaga de {config.PRIOR_CENTER_KMH:.0f} km/h = 50 %). "
+                   f"Lleva {what}; aprende sola cuando haya suficientes.")
+        rows.append(f"<li><b>{escape(st.name)}</b> {tag}<br><span class='muted small'>{why}</span></li>")
     return f"""
 <section class="card">
   <h2>Cómo calculamos la probabilidad</h2>
@@ -470,16 +559,25 @@ dt{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.
 dd{margin:0;font-size:1.45rem;font-weight:750;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:4px}dd small{font-size:.75rem;font-weight:500;color:var(--muted)}
 .arrow{width:24px;height:24px;fill:var(--brand)}
 .chartbox{margin:8px 0 0}.chart{width:100%;height:auto;display:block;overflow:visible}
-.z{opacity:.11}.z-bajo{fill:var(--ok);opacity:.07}.z-medio{fill:var(--mid)}.z-alto{fill:var(--hi)}
 .thl{stroke-width:1;stroke-dasharray:3 3}.t-medio{stroke:var(--mid)}.t-alto{stroke:var(--hi)}
 .bar.l-bajo{fill:var(--ok)}.bar.l-medio{fill:var(--mid)}.bar.l-alto{fill:var(--hi)}.bar.l-nd{fill:var(--nd)}.bar.fc{opacity:.45}
-.susp{fill:var(--hi);opacity:.14}.susp-t{fill:var(--hi);font-weight:700}
+.susp{fill:var(--hi);opacity:.14}
 .ax{font-size:10px;fill:var(--muted)}.ax-day{font-weight:700;fill:var(--fg)}.ax-medio{fill:var(--mid);font-weight:700}.ax-alto{fill:var(--hi);font-weight:700}
 .tick{stroke:var(--line)}.daysep{stroke:var(--muted);stroke-width:.8;stroke-dasharray:2 3;opacity:.6}.nowl{stroke:var(--fg);stroke-width:1.2;stroke-dasharray:3 2;opacity:.7}.now-t{fill:var(--fg);font-weight:700}
 .legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.7rem;color:var(--muted);margin-top:4px}
 .legend span{display:inline-flex;align-items:center;gap:5px}
 .lg{width:10px;height:10px;border-radius:2px;display:inline-block}.lg-past{background:var(--ok)}.lg-fc{background:var(--ok);opacity:.45}
-.lg-bajo{background:var(--ok);opacity:.35}.lg-medio{background:var(--mid);opacity:.45}.lg-alto{background:var(--hi);opacity:.45}
+.lg-susp{background:var(--hi);opacity:.3}.tick-ok{color:var(--ok);font-weight:800;font-size:1.1rem}
+.lg-colors{gap:4px!important}.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-left:4px}
+.d-bajo{background:var(--ok)}.d-medio{background:var(--mid)}.d-alto{background:var(--hi)}
+.verdict small{font-weight:500;font-size:.82rem;opacity:.85}
+.ops{list-style:none;padding:0;margin:8px 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.ops li{display:flex;gap:10px;align-items:center}.ops div{display:flex;flex-direction:column;line-height:1.25;font-size:.85rem}
+.ops span{color:var(--muted);font-size:.78rem}.ops small{font-size:.78rem;margin-top:2px}
+.donut{width:64px;height:64px;flex:none}.donut circle{fill:none;stroke-width:8}
+.dn-bad{stroke:var(--hi)}.dn-ok{stroke:var(--ok)}.donut text{fill:var(--fg);font-size:13px;font-weight:750}
+.episodes li{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;border-left:3px solid var(--hi);padding-left:10px!important}
+.episodes li span{color:var(--muted)}.episodes .dur{margin-left:auto}.episodes .ep-live{background:var(--hi-bg)}
 .win{font-size:.85rem;margin:10px 0 0;font-weight:600}.win-ok{color:var(--ok)}
 .wins{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:6px}
 .wins li{border-radius:10px;padding:7px 10px;font-size:.86rem}.wins .w-medio{background:var(--mid-bg);color:var(--mid)}.wins .w-alto{background:var(--hi-bg);color:var(--hi)}
@@ -490,6 +588,8 @@ dd{margin:0;font-size:1.45rem;font-weight:750;font-variant-numeric:tabular-nums;
 .plan{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px}
 .plan li{border-radius:10px;padding:6px 4px;text-align:center;font-size:.78rem;line-height:1.2;font-variant-numeric:tabular-nums}
 .plan li b{display:block;font-size:.95rem}.plan li.top{outline:2px solid var(--brand);outline-offset:1px}
+.plan li.pday{grid-column:1/-1;text-align:left;padding:6px 2px 0;font-weight:700;font-size:.8rem;color:var(--muted)}
+.plan li.pday::first-letter{text-transform:uppercase}
 table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;vertical-align:middle}
 th{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
 .pill{display:inline-block;border-radius:99px;padding:2px 9px;font-weight:700;font-size:.78rem}
@@ -528,8 +628,12 @@ function show(i){btns.forEach(function(b,j){b.setAttribute('aria-pressed',j===i)
 var start=Math.ceil(Date.now()/H)*H,opts=[];for(var k=0;k<24;k++){var dep=start+k*H,p=at(dep+drive);if(p!==null)opts.push([dep,p])}
 if(!opts.length){best.textContent='Sin pronóstico para ese horario.';grid.innerHTML='';return}
 var top=opts.reduce(function(a,b){return b[1]<a[1]-0.02?b:a});
-best.innerHTML='Mejor salida desde '+d.origins[i][0]+': <b>'+hhmm(top[0])+'</b> · llegás ~'+hhmm(top[0]+drive)+' · prob. de suspensión '+Math.round(top[1]*100)+' %%';
-grid.innerHTML=opts.map(function(o){return'<li class="b-'+lvl(o[1])+(o===top?' top':'')+'" title="Llegada ~'+hhmm(o[0]+drive)+'"><b>'+hhmm(o[0])+'</b>'+Math.round(o[1]*100)+' %%</li>'}).join('')}
+best.innerHTML='Mejor salida desde '+d.origins[i][0]+': <b>'+dia(top[0])+' '+hhmm(top[0])+'</b> · llegás ~'+hhmm(top[0]+drive)+' · prob. de suspensión '+Math.round(top[1]*100)+' %%';
+var html='',prev=null;opts.forEach(function(o){var k=dnum(o[0]);if(k!==prev){html+='<li class="pday">'+dia(o[0])+'</li>';prev=k}
+html+='<li class="b-'+lvl(o[1])+(o===top?' top':'')+'" title="Llegada ~'+hhmm(o[0]+drive)+'"><b>'+hhmm(o[0])+'</b>'+Math.round(o[1]*100)+' %%</li>'});grid.innerHTML=html}
+// Día local (hoy / mañana / nombre) de una hora: la mejor salida puede ser al día siguiente.
+function dnum(ms){return Math.floor((ms+d.offset*H)/864e5)}
+function dia(ms){var k=dnum(ms)-dnum(Date.now());return k===0?'hoy':k===1?'mañana':['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][new Date(ms+d.offset*H).getUTCDay()]}
 btns.forEach(function(b,i){b.addEventListener('click',function(){show(i)})});show(0)})();
 """
 
@@ -548,7 +652,7 @@ ENVIVO = """<a class="envivo" href="en-vivo/index.html">
   </span>
   <span class="ev-txt"><span class="ev-vivo"><i></i>EN VIVO · demo</span>
     <b>Ver ferris en vivo</b>
-    <small>Primera Angostura en el mapa: zarpe, giro, cruce y atraque.</small></span>
+    <small>Los 3 cruces en el mapa: zarpe, cruce y atraque.</small></span>
   <span class="ev-flecha" aria-hidden="true">→</span>
 </a>"""
 
