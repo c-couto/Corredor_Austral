@@ -50,8 +50,9 @@ Sabemos algo de programación: entendemos el código si lo vemos, pero no escrib
   pero se filtran fuera de Punta Arenas–Porvenir (`model.is_route_sailing`).
 - **Clima**: Open-Meteo por defecto. Los errores son **timeouts al conectar con Open-Meteo**
   (el "handshake" no termina en 15 s), casi siempre a los :02/:32 (congestión de las horas en
-  punto y y media). `net.py` ya reintenta (`RETRY_WAITS_S` en `config.py`: 5, 10 y 20 s); si
-  siguen, alargar las esperas. Si el clima falla, la corrida sigue y TABSA se guarda igual.
+  punto y y media). El clima de Open-Meteo se intenta 3 veces con 1 min entre intentos
+  (`WEATHER_RETRY_WAITS_S`); lo demás usa `RETRY_WAITS_S` (5, 10 y 20 s). **TABSA se lee
+  primero**, así que si el clima falla o tarda, la corrida sigue y TABSA ya quedó guardado.
 - **Modelo** (`corredor/model.py`): regresión logística en Python puro (ráfaga, viento,
   dirección), con el estado de TABSA como etiqueta. Usa la **regla base** (equivale a un umbral
   de 70 km/h de ráfaga) hasta tener `MODEL_MIN_SAMPLES`=60 muestras y `MODEL_MIN_POSITIVES`=8
@@ -89,6 +90,8 @@ CSV, uno por tabla; diccionario completo en la sección "Datos" del `README.md`.
 - `data/auto/` lo escribe solo el bot; `data/manual/` solo los comandos `status`/`event`/`crossing`.
 - `data/auto/pronosticos/AAAA-MM.csv`: pronóstico de 48 h tal como estaba en cada corrida
   (solo Punta Delgada y Bahía Azul). `data/model/modelo.json`: el modelo (se reescribe a diario).
+- `data/auto/predicciones/AAAA-MM.csv`: lo que **predijimos** en cada corrida para los 3 cruces
+  (ahora, +1…+36 h y cada zarpe de Porvenir), con el mismo cálculo que la web (`corredor/predicciones.py`).
 
 ## Estructura del código
 - `corredor/` (solo biblioteca estándar, Python ≥ 3.10): `python -m corredor <comando>`.
@@ -124,7 +127,7 @@ Hecho:
 - [x] Pantalla En vivo (demo) y medición de cobertura AIS.
 
 Prioridades, en orden:
-1. Guardar las predicciones emitidas en cada corrida (3 cruces).
+1. [x] Guardar las predicciones emitidas en cada corrida (3 cruces) — desde el 24/11/2026.
 2. Contar eventos y zarpes en lugar de lecturas.
 3. Reconstruir las suspensiones de años anteriores (prensa, redes de TABSA y de la Capitanía
    de Puerto de Punta Delgada): es lo único que acorta la espera para entrenar.

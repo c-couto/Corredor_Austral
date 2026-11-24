@@ -174,6 +174,22 @@ Un archivo por mes. En cada corrida se guardan las próximas 48 h de Punta Delga
 | `sea_level_m` | m | Nivel del mar (marea + viento). La grilla es gruesa: sirve para la fase de la marea, no para su altura exacta |
 | `source` | | Fuentes usadas |
 
+#### `data/auto/predicciones/AAAA-MM.csv`: lo que predijimos en cada corrida
+El mismo cálculo que muestra la web, guardado para medir después "cómo nos fue" con anticipación.
+Solo se escribe si el clima de esa corrida llegó bien (~41 filas, ~4 KB por corrida).
+
+| Columna | Descripción |
+|---|---|
+| `emitido_utc` | Corrida en la que se hizo la predicción |
+| `ruta` | `primera_angostura`, `punta_arenas_porvenir` o `rio_verde` |
+| `tipo` | `ahora` (con el viento medido), `hora` (pronóstico para una hora) o `zarpe` (Punta Arenas–Porvenir: para la hora de un zarpe) |
+| `valido_utc` | Para qué momento es la predicción |
+| `anticipacion_h` | Horas entre `emitido_utc` y `valido_utc` (0; 1–6, 9, 12, 18, 24, 36; en zarpes, la que corresponda) |
+| `prob` | Probabilidad de suspensión (0 a 1) |
+| `rafaga_kmh` | Ráfaga usada (medida o pronosticada; vacío en zarpes) |
+| `modelo` | `regla base` o `aprendido <fecha de entrenamiento>` |
+| `detalle` | En zarpes: `fecha hora origen -> destino` |
+
 #### `data/auto/weather_obs.csv`: clima
 Una fila por lugar y corrida.
 

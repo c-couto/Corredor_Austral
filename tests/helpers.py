@@ -33,6 +33,7 @@ class TempDataDir(unittest.TestCase):
             mock.patch.object(config, "DATA_DIR", self.data_dir),
             mock.patch.object(config, "CACHE_DIR", self.cache_dir),
             mock.patch.object(config, "RETRY_WAITS_S", (0, 0, 0)),  # reintentos sin espera
+            mock.patch.object(config, "WEATHER_RETRY_WAITS_S", (0, 0)),
             mock.patch.object(config, "WEATHER_SOURCE", "open_meteo"),
             mock.patch("urllib.request.urlopen", side_effect=_no_network),
             mock.patch("corredor.browser.render_dom", side_effect=_no_browser),

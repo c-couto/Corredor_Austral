@@ -67,10 +67,16 @@ FORECAST_SNAPSHOTS = Table("pronosticos", "auto", (
 STATUS = Table("status_obs", "manual", ("ts_utc", "subject", "status", "note", "source"))
 EVENTS = Table("events", "manual", ("ts_utc", "mode", "place", "kind", "note"))
 CROSSINGS = Table("crossings", "manual", ("ts_utc", "route", "delay_minutes", "note"))
+# Lo que PREDIJIMOS en cada corrida (el mismo cálculo que muestra la web), para medir después
+# "cómo nos fue" con anticipación en los 3 cruces. Un archivo por mes.
+PREDICTIONS = Table("predicciones", "auto", (
+    "emitido_utc", "ruta", "tipo", "valido_utc", "anticipacion_h", "prob", "rafaga_kmh",
+    "modelo", "detalle",
+), monthly=True)
 
 TABLES: dict[str, Table] = {t.name: t for t in (
     WEATHER, MARINE, ERRORS, TABSA_STATE, TABSA_SAILINGS, TABSA_CHANGES, FORECAST_SNAPSHOTS,
-    STATUS, EVENTS, CROSSINGS,
+    PREDICTIONS, STATUS, EVENTS, CROSSINGS,
 )}
 
 

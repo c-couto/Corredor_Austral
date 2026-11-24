@@ -13,9 +13,10 @@ from typing import Any, Mapping
 from . import config
 
 
-def _request_json(req: urllib.request.Request) -> Any:
-    """Hace el pedido con timeout de 15 s y hasta 3 reintentos con espera creciente."""
-    waits = config.RETRY_WAITS_S
+def _request_json(req: urllib.request.Request, waits: tuple[float, ...] | None = None) -> Any:
+    """Hace el pedido con timeout de 15 s y reintentos. `waits`: segundos de espera antes
+    de cada reintento (por defecto config.RETRY_WAITS_S: 3 reintentos de 5, 10 y 20 s)."""
+    waits = config.RETRY_WAITS_S if waits is None else waits
     last_error: BaseException | None = None
     for attempt in range(len(waits) + 1):
         if attempt > 0:
@@ -37,10 +38,10 @@ def _request_json(req: urllib.request.Request) -> Any:
     raise last_error
 
 
-def get_json(url: str, params: Mapping[str, Any]) -> Any:
+def get_json(url: str, params: Mapping[str, Any], waits: tuple[float, ...] | None = None) -> Any:
     """GET que devuelve JSON."""
     full = url + "?" + urllib.parse.urlencode(params)
-    return _request_json(urllib.request.Request(full, headers={"User-Agent": config.USER_AGENT}))
+    return _request_json(urllib.request.Request(full, headers={"User-Agent": config.USER_AGENT}), waits)
 
 
 def post_json(url: str, payload: Mapping[str, Any]) -> Any:
