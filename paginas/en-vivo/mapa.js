@@ -140,7 +140,16 @@ const ICONO_PX = 46; // alto del ícono a tamaño normal
 
 // ------------------------------------------------------------------ mapa
 
-export function crearMapa(contenedor, ruta, { reducido = false, onSeleccion = () => {} } = {}) {
+// Etiquetas del mapa (por cruce): solo los nombres que sirven.
+const ETIQUETAS_PA = [
+  { t: "Primera Angostura", k: "agua", c: [-69.558, -52.4775], rot: -40 },
+  { t: "TIERRA DEL FUEGO", k: "tierra", c: [-69.546, -52.5035], rot: -40 },
+];
+
+export function crearMapa(contenedor, ruta, {
+  reducido = false, onSeleccion = () => {},
+  etiquetas = ETIQUETAS_PA, anclas = ["bottom-right", "top-left"],
+} = {}) {
   const limites = new maplibregl.LngLatBounds(ruta.inicio.punto, ruta.inicio.punto);
   ruta.puntos.forEach((p) => limites.extend(p));
   // Aire alrededor del cruce: arriba los chips, abajo los botones y el crédito del mapa.
@@ -183,8 +192,8 @@ export function crearMapa(contenedor, ruta, { reducido = false, onSeleccion = ()
         "line-gradient": ["interpolate", ["linear"], ["line-progress"], 0, "rgba(255,255,255,0.75)", 1, "rgba(255,255,255,0)"] } });
 
     map.addSource("rampas", { type: "geojson", data: { type: "FeatureCollection", features: [
-      { type: "Feature", properties: { nombre: ruta.inicio.nombre, ancla: "bottom-right" }, geometry: { type: "Point", coordinates: ruta.inicio.punto } },
-      { type: "Feature", properties: { nombre: ruta.fin.nombre, ancla: "top-left" }, geometry: { type: "Point", coordinates: ruta.fin.punto } },
+      { type: "Feature", properties: { nombre: ruta.inicio.nombre, ancla: anclas[0] }, geometry: { type: "Point", coordinates: ruta.inicio.punto } },
+      { type: "Feature", properties: { nombre: ruta.fin.nombre, ancla: anclas[1] }, geometry: { type: "Point", coordinates: ruta.fin.punto } },
     ] } });
     map.addLayer({ id: "rampas", type: "circle", source: "rampas",
       paint: { "circle-radius": 4, "circle-color": "#0A1826", "circle-stroke-color": "#EAF1F7", "circle-stroke-width": 1.6 } });
@@ -193,14 +202,12 @@ export function crearMapa(contenedor, ruta, { reducido = false, onSeleccion = ()
         "text-anchor": ["get", "ancla"], "text-offset": [0, 0], "text-radial-offset": 0.7, "text-allow-overlap": true },
       paint: { "text-color": "#EAF1F7", "text-halo-color": "#0A1826", "text-halo-width": 1.6 } });
 
-    map.addSource("etiquetas", { type: "geojson", data: { type: "FeatureCollection", features: [
-      { type: "Feature", properties: { t: "Primera Angostura", k: "agua" }, geometry: { type: "Point", coordinates: [-69.558, -52.4775] } },
-      { type: "Feature", properties: { t: "TIERRA DEL FUEGO", k: "tierra" }, geometry: { type: "Point", coordinates: [-69.546, -52.5035] } },
-    ] } });
+    map.addSource("etiquetas", { type: "geojson", data: { type: "FeatureCollection", features: etiquetas.map((e) => (
+      { type: "Feature", properties: { t: e.t, k: e.k, rot: e.rot || 0 }, geometry: { type: "Point", coordinates: e.c } })) } });
     map.addLayer({ id: "etiquetas", type: "symbol", source: "etiquetas",
       layout: { "text-field": ["get", "t"], "text-font": ["match", ["get", "k"], "agua", ["literal", ["Noto Sans Italic"]], ["literal", ["Noto Sans Regular"]]],
         "text-size": ["match", ["get", "k"], "agua", 13, 11], "text-letter-spacing": ["match", ["get", "k"], "agua", 0.05, 0.3],
-        "text-rotate": ["match", ["get", "k"], "agua", -40, -40], "text-allow-overlap": true },
+        "text-rotate": ["get", "rot"], "text-allow-overlap": true },
       paint: { "text-color": ["match", ["get", "k"], "agua", "#7FB0D8", "#8296AA"], "text-halo-color": "rgba(10,24,38,0.6)", "text-halo-width": 1 } });
 
     listo = true;

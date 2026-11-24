@@ -32,6 +32,23 @@ class DatosDelCruceTest(unittest.TestCase):
         self.assertRegex(self.datos["descargado_utc"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
 
 
+class DatosPuntaArenasPorvenirTest(unittest.TestCase):
+    def test_via_de_osm_entre_las_terminales_reales(self):
+        d = json.loads((CARPETA / "datos" / "cruce-punta-arenas-porvenir.json").read_text(encoding="utf-8"))
+        self.assertEqual(d["via"]["id"], 86335223)
+        self.assertEqual(d["via"]["duracion"], "02:20")
+        nodos = d["nodos"]
+        self.assertEqual((nodos[0]["id"], nodos[0]["nombre"]), (639853443, "Porvenir"))        # Bahía Chilota
+        self.assertEqual((nodos[-1]["id"], nodos[-1]["nombre"]), (461515635, "Punta Arenas"))  # Tres Puentes
+        self.assertIn("ODbL", d["licencia"])
+
+    def test_horario_real_lee_los_zarpes_de_tabsa(self):
+        estado = (CARPETA / "estado.js").read_text(encoding="utf-8")
+        self.assertIn("tabsa_programados.csv", estado)
+        app = (CARPETA / "app.js").read_text(encoding="utf-8")
+        self.assertIn("Horario real TABSA · posición estimada", app)  # se aclara qué es real y qué estimado
+
+
 class ReglasTest(unittest.TestCase):
     def archivos(self):
         return [p for p in CARPETA.rglob("*") if p.suffix in {".js", ".html", ".css", ".json"}]
@@ -61,7 +78,8 @@ class ReglasTest(unittest.TestCase):
 
     def test_fuentes_con_el_mismo_formato(self):
         campos = ("mmsi", "nombre", "naviera", "lat", "lon", "velocidad_nudos", "rumbo", "hora_utc")
-        for archivo in ("fuente-simulada.js", "fuente-ais.js"):
+        # movimiento.js arma el registro común que usan la simulación y el horario real
+        for archivo in ("movimiento.js", "fuente-ais.js"):
             texto = (CARPETA / archivo).read_text(encoding="utf-8")
             for c in campos:
                 self.assertTrue(re.search(rf"\b{c}\b", texto), f"{archivo} no menciona {c}")

@@ -7,16 +7,41 @@
 //   ?ferry=MMSI     abre con ese ferry seleccionado
 //   ?hora=HH:MM     arranca la simulación a esa hora local de hoy (p. ej. para ver
 //                   ferris cruzando de noche, cuando con el horario real están en rampa)
+//   ?cruce=pap      Punta Arenas – Porvenir (horario real de TABSA); sin esto, Primera Angostura
 
 import { Ruta } from "./ruta.js";
 import { crearFuenteSimulada, hoyALas } from "./fuente-simulada.js";
+import { crearFuenteHorario } from "./fuente-horario.js";
 import { crearMapa, naviera } from "./mapa.js";
-import { situacion, cardinal } from "./situacion.js";
-import { estadoTabsa, vientoPuntaDelgada } from "./estado.js";
+import { situacion, cardinal, horaLocal } from "./situacion.js";
+import { estadoTabsa, vientoPuntaDelgada, zarpesTabsa } from "./estado.js";
 
 const $ = (s) => document.querySelector(s);
 const params = new URLSearchParams(location.search);
 const reducido = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Cada cruce: de dónde sale la ruta, qué fuente de datos usa y cómo se rotula.
+const CRUCES = {
+  pa: {
+    datos: "datos/cruce-primera-angostura.json",
+    chip: "Simulación · datos de ejemplo",
+    viento: "punta_delgada",
+  },
+  pap: {
+    datos: "datos/cruce-punta-arenas-porvenir.json",
+    chip: "Horario real TABSA · posición estimada",
+    viento: "punta_arenas",
+    anclas: ["left", "top-left"],
+    etiquetas: [
+      { t: "Estrecho de Magallanes", k: "agua", c: [-70.74, -53.25], rot: -28 },
+      { t: "TIERRA DEL FUEGO", k: "tierra", c: [-70.36, -53.385], rot: 0 },
+    ],
+    nota: "Horarios y estado de cada zarpe: los publicados por TABSA. La posición del ferry durante el cruce " +
+      "es una estimación según ese horario (no hay señal AIS en la zona). Ante la duda, confirmá con TABSA.",
+  },
+};
+const cruce = params.get("cruce") === "pap" ? "pap" : "pa";
+const minutosDe = (hhmm) => { const m = /^(\d{1,2}):(\d\d)$/.exec(hhmm || ""); return m ? +m[1] * 60 + +m[2] : null; };
 
 function haceTexto(ms) {
   const s = Math.max(0, Math.round(ms / 1000));
@@ -63,6 +88,33 @@ async function cargarEstado() {
   return { suspendido: !normal };
 }
 
+/** Punta Arenas – Porvenir: la franja muestra el próximo zarpe oficial de TABSA. */
+function pintarHorario(fuente) {
+  const caja = $("#estado");
+  const txt = $("#estado-txt");
+  if (!fuente.zarpes.length) {
+    caja.dataset.tipo = "medio";
+    txt.textContent = fuente.leido === null ? "No se pudo leer el horario de TABSA. Revisá la conexión."
+      : "Sin zarpes publicados por TABSA";
+    return;
+  }
+  const t = fuente.ahora();
+  const z = fuente.proximo(t);
+  const leido = fuente.leido ? ` · ${haceTexto(Date.now() - fuente.leido)}` : "";
+  if (!z) {
+    caja.dataset.tipo = "medio";
+    txt.textContent = `Sin más zarpes publicados · Fuente: TABSA${leido}`;
+    return;
+  }
+  const normal = /^normal$/i.test(z.estado);
+  caja.dataset.tipo = normal ? "ok" : /SUSP/i.test(z.estado) ? "mal" : "medio";
+  const cuando = Math.floor((z.sale - 3 * 3600000) / 86400000) !== Math.floor((t - 3 * 3600000) / 86400000)
+    ? `mañana ${horaLocal(z.sale)}` : horaLocal(z.sale);
+  txt.textContent = normal
+    ? `Próximo zarpe ${cuando} desde ${z.origen} · Fuente: TABSA${leido}`
+    : `Zarpe de ${cuando} desde ${z.origen}: ${z.estado.toLowerCase()} · Fuente: TABSA${leido}`;
+}
+
 // ------------------------------------------------------------------ lista de ferris
 
 const filas = new Map();
@@ -89,10 +141,12 @@ function crearFila(reg, alTocar) {
   return li;
 }
 
-function actualizarLista(regs, ruta, ahoraSim, factor, seleccionado, alTocar, suspendido) {
+function actualizarLista(regs, ruta, fuente, seleccionado, alTocar) {
+  const ahoraSim = fuente.ahora();
+  const factor = fuente.velocidad;
   for (const r of regs) {
     const li = filas.get(r.mmsi) || crearFila(r, alTocar);
-    const s = situacion(r, ruta, ahoraSim, { suspendido });
+    const s = situacion(r, ruta, ahoraSim, { suspendido: fuente.suspendido });
     li.querySelector(".que").textContent = `${r.naviera} · ${s.texto}`;
     li.querySelector(".eta").textContent = s.eta || "";
     li.dataset.fase = s.fase;
@@ -103,7 +157,12 @@ function actualizarLista(regs, ruta, ahoraSim, factor, seleccionado, alTocar, su
     if (abierta) {
       li.querySelector(".d-vel").textContent = `${r.velocidad_nudos.toFixed(1)} nudos`;
       li.querySelector(".d-rumbo").textContent = r.velocidad_nudos >= 1 ? `${Math.round(r.rumbo)}° ${cardinal(r.rumbo)}` : "—";
-      li.querySelector(".d-senal").textContent = haceTexto((ahoraSim - Date.parse(r.hora_utc)) / factor);
+      if (fuente.tipo === "horario") {
+        li.querySelector(".detalle div:last-child dt").textContent = "Posición";
+        li.querySelector(".d-senal").textContent = "estimada (horario)";
+      } else {
+        li.querySelector(".d-senal").textContent = haceTexto((ahoraSim - Date.parse(r.hora_utc)) / factor);
+      }
     }
   }
 }
@@ -122,21 +181,39 @@ async function iniciar() {
   $("#btn-info").addEventListener("click", () => $("#dlg-info").showModal());
   $("#btn-cerrar-info").addEventListener("click", () => $("#dlg-info").close());
 
-  // Selector de cruce
-  document.querySelectorAll(".selector button").forEach((b) => b.addEventListener("click", () => {
-    document.querySelectorAll(".selector button").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
-    const pronto = b.dataset.ruta !== "pa";
-    $("#pronto").hidden = !pronto;
-    document.body.classList.toggle("ruta-pronto", pronto);
-  }));
+  // Selector de cruce: cada cruce es la misma página con ?cruce=...
+  document.querySelectorAll(".selector button").forEach((b) => {
+    b.setAttribute("aria-selected", String(b.dataset.ruta === cruce));
+    b.addEventListener("click", () => {
+      if (b.dataset.ruta === cruce) return;
+      const p = new URLSearchParams(location.search);
+      p.delete("ferry");
+      if (b.dataset.ruta === "pa") p.delete("cruce"); else p.set("cruce", b.dataset.ruta);
+      location.search = p.toString();
+    });
+  });
 
-  const datos = await (await fetch("datos/cruce-primera-angostura.json")).json();
+  const cfg = CRUCES[cruce];
+  $("#chip-sim").textContent = cfg.chip;
+  if (cfg.nota) $("#nota").textContent = cfg.nota;
+  const datos = await (await fetch(cfg.datos)).json();
   const ruta = new Ruta(datos);
   const hora = /^\d{1,2}:\d{2}$/.test(params.get("hora") || "") ? params.get("hora") : null;
-  const fuente = crearFuenteSimulada(ruta, {
-    velocidad: Number(params.get("velocidad")) || 1,
-    inicio: hora ? hoyALas(hora) : null,
-  });
+  const opciones = { velocidad: Number(params.get("velocidad")) || 1, inicio: hora ? hoyALas(hora) : null };
+  let fuente;
+  if (cruce === "pap") {
+    const duracion = minutosDe(datos.via?.duracion) || 140;
+    const leidos = await zarpesTabsa(ruta, duracion);
+    fuente = crearFuenteHorario(ruta, leidos ? leidos.zarpes : [], opciones);
+    fuente.leido = leidos?.leido || null;
+    // Cada 5 min se vuelve a leer el horario (TABSA puede suspender o agregar zarpes).
+    setInterval(async () => {
+      const nuevos = await zarpesTabsa(ruta, duracion);
+      if (nuevos) { fuente.zarpes.splice(0, fuente.zarpes.length, ...nuevos.zarpes); fuente.leido = nuevos.leido; }
+    }, 5 * 60 * 1000);
+  } else {
+    fuente = crearFuenteSimulada(ruta, opciones);
+  }
 
   let seleccionado = null;
   const seleccionar = (mmsi) => {
@@ -144,7 +221,10 @@ async function iniciar() {
     mapa.seleccionar(seleccionado);
     refrescarLista();
   };
-  const mapa = crearMapa($("#mapa"), ruta, { reducido, onSeleccion: seleccionar });
+  const mapa = crearMapa($("#mapa"), ruta, {
+    reducido, onSeleccion: seleccionar,
+    ...(cfg.etiquetas ? { etiquetas: cfg.etiquetas } : {}), ...(cfg.anclas ? { anclas: cfg.anclas } : {}),
+  });
   $("#btn-centrar").addEventListener("click", () => mapa.volverAlCruce());
 
   const btnVel = $("#btn-vel");
@@ -156,18 +236,24 @@ async function iniciar() {
   pintarVel();
 
   let regs = fuente.leer();
-  const refrescarLista = () =>
-    actualizarLista(regs, ruta, fuente.ahora(), fuente.velocidad, seleccionado, seleccionar, fuente.suspendido);
-  const inicial = Number(params.get("ferry")); // ?ferry=MMSI abre la pantalla con ese ferry seleccionado
+  const refrescarLista = () => actualizarLista(regs, ruta, fuente, seleccionado, seleccionar);
+  const pedido = params.get("ferry"); // ?ferry=MMSI abre la pantalla con ese ferry seleccionado
+  const inicial = cruce === "pap" ? (pedido || null) : (Number(pedido) || null);
   if (inicial) mapa.map.once("load", () => requestAnimationFrame(() => seleccionar(inicial)));
 
-  const aplicarEstado = async () => {
-    const { suspendido } = await cargarEstado();
-    fuente.suspendido = suspendido;
-  };
-  aplicarEstado();
-  setInterval(aplicarEstado, 5 * 60 * 1000);
-  vientoPuntaDelgada().then((v) => { if (v && !Number.isNaN(v.desde_deg)) mapa.viento(v.desde_deg); });
+  if (cruce === "pap") {
+    pintarHorario(fuente);
+    setInterval(() => pintarHorario(fuente), 30 * 1000);
+    if (!fuente.zarpes.length) $("#lista").innerHTML = "<li class='nota'>TABSA no tiene zarpes publicados para estos días.</li>";
+  } else {
+    const aplicarEstado = async () => {
+      const { suspendido } = await cargarEstado();
+      fuente.suspendido = suspendido;
+    };
+    aplicarEstado();
+    setInterval(aplicarEstado, 5 * 60 * 1000);
+  }
+  vientoPuntaDelgada(cfg.viento).then((v) => { if (v && !Number.isNaN(v.desde_deg)) mapa.viento(v.desde_deg); });
 
   const inicio = performance.now();
   if (reducido) {

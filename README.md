@@ -226,6 +226,12 @@ con las maniobras de una barcaza de rampa (llega de proa; al zarpar retrocede, g
 estado oficial de TABSA (si suspende, los ferris quedan en rampa), la ruta (vía OSM 49793837) y el viento.
 Cuando AIS tenga cobertura se cambia la fuente (`fuente-ais.js`, mismo formato) sin tocar el dibujo.
 
+**Punta Arenas – Porvenir (`en-vivo/?cruce=pap`)**: el ferry sigue los **zarpes reales que publica TABSA**
+(los guarda el recolector en `tabsa_programados.csv`; la página los lee en vivo desde GitHub): hora, origen y
+estado de cada zarpe (si TABSA lo suspende, el ferry no sale). La posición durante el cruce es estimada
+(2 h 20 min según la vía OSM 86335223). Resultado de la medición AIS: 90 sesiones (~15 h) sin ninguna
+posición en el Estrecho; las posiciones en vivo solo existen por AIS satelital, que es pago.
+
 **Fuente:** los barcos de pasajeros transmiten su posición por AIS (es obligatorio).
 [aisstream.io](https://aisstream.io) da esos datos gratis por WebSocket (`wss://stream.aisstream.io/v0/stream`):
 se conecta, se manda en menos de 3 segundos una suscripción con la clave y los rectángulos, y llegan las posiciones.

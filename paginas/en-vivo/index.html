@@ -37,14 +37,14 @@
 
   <div class="selector" role="tablist" aria-label="Cruce">
     <button type="button" role="tab" aria-selected="true" data-ruta="pa">Primera Angostura</button>
-    <button type="button" role="tab" aria-selected="false" data-ruta="pp">Punta Arenas – Porvenir</button>
+    <button type="button" role="tab" aria-selected="false" data-ruta="pap">Punta Arenas – Porvenir</button>
   </div>
 
   <section class="mapa-caja" aria-label="Mapa del cruce">
     <div id="mapa"></div>
     <div class="chips">
       <span class="chip vivo"><i aria-hidden="true"></i>EN VIVO</span>
-      <span class="chip sim">Simulación · datos de ejemplo</span>
+      <span class="chip sim" id="chip-sim">Simulación · datos de ejemplo</span>
     </div>
     <div class="botones-mapa">
       <button type="button" class="chip boton" id="btn-vel" aria-pressed="false">Demo ×20</button>
@@ -65,7 +65,7 @@
 
   <h2 class="titulo-lista">Ferris en el cruce</h2>
   <ul class="ferris" id="lista"></ul>
-  <p class="nota">Posiciones simuladas mientras medimos la cobertura AIS de la zona. El estado del cruce
+  <p class="nota" id="nota">Posiciones simuladas mientras medimos la cobertura AIS de la zona. El estado del cruce
     es el oficial de TABSA; ante la duda, confirmá con TABSA.</p>
 </div>
 
@@ -106,7 +106,10 @@
   <h2 id="info-titulo">Sobre esta pantalla</h2>
   <p><b>Los ferris de este mapa son una simulación.</b> Estamos midiendo si las señales AIS de los barcos
     llegan bien desde el Estrecho; cuando alcancen, el mapa va a mostrar las posiciones reales.</p>
-  <p>La simulación sigue un <b>horario aproximado</b> en hora local: cruce de 20 min, 10 min de
+  <p><b>Punta Arenas – Porvenir:</b> el ferry sigue los <b>zarpes reales que publica TABSA</b> (hora, origen y
+    estado; si TABSA suspende un zarpe, el ferry no sale). La posición durante el cruce es una estimación:
+    duración de 2 h 20 min según OpenStreetMap.</p>
+  <p><b>Primera Angostura:</b> la simulación sigue un <b>horario aproximado</b> en hora local: cruce de 20 min, 10 min de
     embarque en rampa y servicio de 08:00 a 24:00 (datos de OpenStreetMap; a confirmar con TABSA).
     Si TABSA informa el cruce suspendido, los ferris se quedan en rampa.</p>
   <p>El <b>estado del cruce</b> es el oficial de <a href="https://www.tabsa.cl/estado-cruces" rel="noopener">TABSA</a>,

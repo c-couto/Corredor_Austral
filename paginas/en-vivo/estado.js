@@ -48,10 +48,42 @@ export async function estadoTabsa(cruce = "primera_angostura") {
   }
 }
 
-/** { desde_deg, kmh, ts } del viento en Punta Delgada, o null. */
-export async function vientoPuntaDelgada() {
+const puerto = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+
+/**
+ * Zarpes publicados por TABSA para un cruce con horario (p. ej. Punta Arenas – Porvenir).
+ * Cada zarpe una sola vez, con el ÚLTIMO estado que publicó TABSA.
+ * @returns {{ zarpes: {sale, llega, desde, estado, origen, destino}[], leido: number } | null}
+ */
+export async function zarpesTabsa(ruta, duracionMin, offsetH = -3) {
   try {
-    const filas = (await ultimasFilas("weather_obs.csv", 12000)).filter((f) => f.place === "punta_delgada");
+    const ini = puerto(ruta.inicio.nombre), fin = puerto(ruta.fin.nombre);
+    const filas = await ultimasFilas("tabsa_programados.csv", 60000);
+    const por = new Map();
+    let leido = 0;
+    for (const f of filas) {
+      const o = puerto(f.origin), d = puerto(f.destination);
+      if (!((o === ini && d === fin) || (o === fin && d === ini))) continue; // otras rutas de TABSA
+      const m = /^(\d{4})-(\d\d)-(\d\d)$/.exec(f.date || "");
+      const h = /^(\d{1,2}):(\d\d)$/.exec(f.departure || "");
+      if (!m || !h) continue;
+      const sale = Date.UTC(+m[1], +m[2] - 1, +m[3], +h[1], +h[2]) - offsetH * 3600000;
+      por.set(`${f.date} ${f.departure} ${o}`, {
+        sale, llega: sale + duracionMin * 60000, desde: o === ini ? "inicio" : "fin",
+        estado: (f.status || "").trim(), origen: f.origin, destino: f.destination,
+      });
+      leido = Math.max(leido, Date.parse(f.ts_utc) || 0);
+    }
+    return { zarpes: [...por.values()].sort((a, b) => a.sale - b.sale), leido };
+  } catch {
+    return null;
+  }
+}
+
+/** { desde_deg, kmh, ts } del último viento medido en un lugar (por defecto Punta Delgada), o null. */
+export async function vientoPuntaDelgada(lugar = "punta_delgada") {
+  try {
+    const filas = (await ultimasFilas("weather_obs.csv", 12000)).filter((f) => f.place === lugar);
     const f = filas[filas.length - 1];
     if (!f || f.wind_dir_deg === "") return null;
     return { desde_deg: Number(f.wind_dir_deg), kmh: Number(f.wind_kmh), ts: Date.parse(f.ts_utc) };

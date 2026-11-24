@@ -18,6 +18,7 @@ export function horaLocal(ms, offsetH = -3) {
 }
 
 const enMin = (ms) => Math.max(1, Math.ceil(ms / 60000));
+const diaLocal = (ms, offsetH = -3) => Math.floor((ms + offsetH * 3600000) / 86400000);
 
 export function situacion(reg, ruta, ahoraMs, { suspendido = false } = {}) {
   const { d, desvio } = ruta.proyectar([reg.lon, reg.lat]);
@@ -28,11 +29,14 @@ export function situacion(reg, ruta, ahoraMs, { suspendido = false } = {}) {
   if (v < 1 && (cercaInicio || cercaFin)) {
     const lado = cercaInicio ? ruta.inicio.nombre : ruta.fin.nombre;
     if (suspendido) return { fase: "rampa", texto: `En rampa ${lado} · cruce suspendido`, eta: null };
+    if (reg.suspendido) return { fase: "rampa", texto: `En rampa ${lado} · próximo zarpe suspendido`, eta: null };
     if (!reg.sale_utc) return { fase: "rampa", texto: `En rampa ${lado}`, eta: null };
-    const falta = Date.parse(reg.sale_utc) - ahoraMs;
+    const sale = Date.parse(reg.sale_utc);
+    const falta = sale - ahoraMs;
     if (falta <= EMBARQUE_MIN * 60000) return { fase: "rampa", texto: `En rampa ${lado} · embarcando`, eta: `sale en ~${enMin(falta)} min` };
-    const texto = falta > 3 * 3600000 ? `En rampa ${lado} · sin servicio` : `En rampa ${lado} · en espera`;
-    return { fase: "rampa", texto, eta: `sale ${horaLocal(Date.parse(reg.sale_utc))}` };
+    const otroDia = diaLocal(sale) !== diaLocal(ahoraMs);
+    const texto = otroDia ? `En rampa ${lado} · sin más zarpes hoy` : `En rampa ${lado} · en espera`;
+    return { fase: "rampa", texto, eta: `sale ${otroDia ? "mañana " : ""}${horaLocal(sale)}` };
   }
   if (v < 1) return { fase: "detenido", texto: "Detenido en el cruce", eta: null };
 
