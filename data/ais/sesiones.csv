@@ -94,3 +94,4 @@ inicio_utc,fin_utc,mensajes,posiciones,error
 2026-11-24T03:15:45Z,2026-11-24T03:25:53Z,1,0,TimeoutError: The read operation timed out
 2026-11-24T03:45:43Z,2026-11-24T03:55:47Z,1,0,
 2026-11-24T04:15:43Z,2026-11-24T04:25:43Z,1,0,TimeoutError: The read operation timed out
+2026-11-24T04:44:25Z,2026-11-24T04:54:27Z,1,0,TimeoutError: The read operation timed out
