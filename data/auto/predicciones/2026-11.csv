@@ -1398,3 +1398,45 @@ emitido_utc,ruta,tipo,valido_utc,anticipacion_h,prob,rafaga_kmh,modelo,detalle
 2026-11-25T12:35:42Z,punta_arenas_porvenir,zarpe,2026-11-26T12:00:00Z,23.41,0.6882,,regla base,2026-11-26 09:00 Punta Arenas -> Porvenir
 2026-11-25T12:35:42Z,punta_arenas_porvenir,zarpe,2026-11-26T18:00:00Z,29.41,0.7432,,regla base,2026-11-26 15:00 Porvenir -> Punta Arenas
 2026-11-25T12:35:42Z,punta_arenas_porvenir,zarpe,2026-11-26T21:00:00Z,32.41,0.5277,,regla base,2026-11-26 18:00 Punta Arenas -> Porvenir
+2026-11-25T13:05:33Z,primera_angostura,ahora,2026-11-25T13:05:33Z,0,0.1155,69.8,aprendido 2026-11-25T00:05:40Z,
+2026-11-25T13:05:33Z,primera_angostura,hora,2026-11-25T14:00:00Z,1,0.0947,70.6,aprendido 2026-11-25T00:05:40Z,
+2026-11-25T13:05:33Z,primera_angostura,hora,2026-11-25T15:00:00Z,2,0.0492,65.5,aprendido 2026-11-25T00:05:40Z,
+2026-11-25T13:05:33Z,primera_angostura,hora,2026-11-25T16:00:00Z,3,0.0234,57.2,aprendido 2026-11-25T00:05:40Z,
+2026-11-25T13:05:33Z,primera_angostura,hora,2026-11-25T17:00:00Z,4,0.0215,53.3,aprendido 2026-11-25T00:05:40Z,
+2026-11-25T13:05:33Z,primera_angostura,hora,2026-11-25T18:00:00Z,5,0.0084,50.8,aprendido 2026-11-25T00:05:40Z,
+2026-11-25T13:05:33Z,primera_angostura,hora,2026-11-25T19:00:00Z,6,0.0029,34.6,aprendido 2026-11-25T00:05:40Z,
+2026-11-25T13:05:33Z,primera_angostura,hora,2026-11-25T22:00:00Z,9,0.027,58.3,aprendido 2026-11-25T00:05:40Z,
+2026-11-25T13:05:33Z,primera_angostura,hora,2026-11-26T01:00:00Z,12,0.0142,52.6,aprendido 2026-11-25T00:05:40Z,
+2026-11-25T13:05:33Z,primera_angostura,hora,2026-11-26T07:00:00Z,18,0.0401,64.4,aprendido 2026-11-25T00:05:40Z,
+2026-11-25T13:05:33Z,primera_angostura,hora,2026-11-26T13:00:00Z,24,0.1381,72.7,aprendido 2026-11-25T00:05:40Z,
+2026-11-25T13:05:33Z,primera_angostura,hora,2026-11-27T01:00:00Z,36,0.0042,34.6,aprendido 2026-11-25T00:05:40Z,
+2026-11-25T13:05:33Z,punta_arenas_porvenir,ahora,2026-11-25T13:05:33Z,0,0.1626,46.4,regla base,
+2026-11-25T13:05:33Z,punta_arenas_porvenir,hora,2026-11-25T14:00:00Z,1,0.1996,50.0,regla base,
+2026-11-25T13:05:33Z,punta_arenas_porvenir,hora,2026-11-25T15:00:00Z,2,0.2203,51.8,regla base,
+2026-11-25T13:05:33Z,punta_arenas_porvenir,hora,2026-11-25T16:00:00Z,3,0.2337,52.9,regla base,
+2026-11-25T13:05:33Z,punta_arenas_porvenir,hora,2026-11-25T17:00:00Z,4,0.2568,54.7,regla base,
+2026-11-25T13:05:33Z,punta_arenas_porvenir,hora,2026-11-25T18:00:00Z,5,0.3582,61.6,regla base,
+2026-11-25T13:05:33Z,punta_arenas_porvenir,hora,2026-11-25T19:00:00Z,6,0.4174,65.2,regla base,
+2026-11-25T13:05:33Z,punta_arenas_porvenir,hora,2026-11-25T22:00:00Z,9,0.4653,68.0,regla base,
+2026-11-25T13:05:33Z,punta_arenas_porvenir,hora,2026-11-26T01:00:00Z,12,0.3694,62.3,regla base,
+2026-11-25T13:05:33Z,punta_arenas_porvenir,hora,2026-11-26T07:00:00Z,18,0.7575,86.4,regla base,
+2026-11-25T13:05:33Z,punta_arenas_porvenir,hora,2026-11-26T13:00:00Z,24,0.8123,91.1,regla base,
+2026-11-25T13:05:33Z,punta_arenas_porvenir,hora,2026-11-27T01:00:00Z,36,0.1703,47.2,regla base,
+2026-11-25T13:05:33Z,rio_verde,ahora,2026-11-25T13:05:33Z,0,0.2622,55.1,regla base,
+2026-11-25T13:05:33Z,rio_verde,hora,2026-11-25T14:00:00Z,1,0.3074,58.3,regla base,
+2026-11-25T13:05:33Z,rio_verde,hora,2026-11-25T15:00:00Z,2,0.3133,58.7,regla base,
+2026-11-25T13:05:33Z,rio_verde,hora,2026-11-25T16:00:00Z,3,0.1845,48.6,regla base,
+2026-11-25T13:05:33Z,rio_verde,hora,2026-11-25T17:00:00Z,4,0.2167,51.5,regla base,
+2026-11-25T13:05:33Z,rio_verde,hora,2026-11-25T18:00:00Z,5,0.2251,52.2,regla base,
+2026-11-25T13:05:33Z,rio_verde,hora,2026-11-25T19:00:00Z,6,0.3133,58.7,regla base,
+2026-11-25T13:05:33Z,rio_verde,hora,2026-11-25T22:00:00Z,9,0.5347,72.0,regla base,
+2026-11-25T13:05:33Z,rio_verde,hora,2026-11-26T01:00:00Z,12,0.5843,74.9,regla base,
+2026-11-25T13:05:33Z,rio_verde,hora,2026-11-26T07:00:00Z,18,0.7338,84.6,regla base,
+2026-11-25T13:05:33Z,rio_verde,hora,2026-11-26T13:00:00Z,24,0.7484,85.7,regla base,
+2026-11-25T13:05:33Z,rio_verde,hora,2026-11-27T01:00:00Z,36,0.1996,50.0,regla base,
+2026-11-25T13:05:33Z,punta_arenas_porvenir,zarpe,2026-11-25T13:30:00Z,0.41,0.1626,,regla base,2026-11-25 10:30 Porvenir -> Punta Arenas
+2026-11-25T13:05:33Z,punta_arenas_porvenir,zarpe,2026-11-25T20:30:00Z,7.41,0.4653,,regla base,2026-11-25 17:30 Punta Arenas -> Porvenir
+2026-11-25T13:05:33Z,punta_arenas_porvenir,zarpe,2026-11-25T23:30:00Z,10.41,0.399,,regla base,2026-11-25 20:30 Porvenir -> Punta Arenas
+2026-11-25T13:05:33Z,punta_arenas_porvenir,zarpe,2026-11-26T12:00:00Z,22.91,0.6882,,regla base,2026-11-26 09:00 Punta Arenas -> Porvenir
+2026-11-25T13:05:33Z,punta_arenas_porvenir,zarpe,2026-11-26T18:00:00Z,28.91,0.7432,,regla base,2026-11-26 15:00 Porvenir -> Punta Arenas
+2026-11-25T13:05:33Z,punta_arenas_porvenir,zarpe,2026-11-26T21:00:00Z,31.91,0.5277,,regla base,2026-11-26 18:00 Punta Arenas -> Porvenir
