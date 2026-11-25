@@ -161,6 +161,9 @@ class AccesoDesdeLaWebTest(unittest.TestCase):
         self.assertIn('href="en-vivo/index.html"', html)
         self.assertIn("Ver ferris en vivo", html)
         self.assertIn("demo", html)  # se avisa que es una demo
+        # Abierta como archivo (file://) el botón va al sitio publicado, no a una pantalla que no carga.
+        self.assertIn('location.protocol === "file:"', html)
+        self.assertIn("https://c-couto.github.io/Corredor_Austral/en-vivo/", html)
 
     def test_pages_copia_la_pantalla(self):
         wf = (CARPETA.parent.parent / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8")
