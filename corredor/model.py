@@ -11,6 +11,9 @@ Cómo aprende (todo con Python puro, sin costo):
 Protecciones:
   - Mientras no haya datos suficientes (config.MODEL_MIN_*), se usa una regla
     base: una curva sobre la ráfaga (config.PRIOR_*).
+  - Las suspensiones se cuentan por EVENTO (un temporal = 1, aunque dure 7 lecturas)
+    y cada zarpe cancelado una sola vez. Contar lecturas inflaba los números: con
+    2 temporales ya parecía que había 10 suspensiones.
   - El modelo aprendido solo reemplaza a la regla base si predice MEJOR que ella
     en datos que no usó para aprender (los más recientes), medido con el puntaje
     de Brier (error cuadrático de la probabilidad; más bajo es mejor).
@@ -108,7 +111,8 @@ class RouteModel:
     means: list[float] = field(default_factory=list)
     stds: list[float] = field(default_factory=list)
     n_samples: int = 0
-    n_positive: int = 0
+    n_positive: int = 0                 # lecturas no normales
+    n_events: int = 0                   # suspensiones contadas por evento / zarpe
     trained_utc: str = ""
     reason: str = ""                    # por qué se usa este modelo (se muestra en la web)
     metrics: dict = field(default_factory=dict)
@@ -189,16 +193,21 @@ def auc(probs: list[float], ys: list[int]) -> float | None:
     return wins / (len(pos) * len(neg))
 
 
-def train(samples: list[tuple[datetime, list[float], int]], now: datetime | None = None) -> RouteModel:
-    """Entrena con [(hora, variables, 1 si no normal)] y decide si supera a la regla base."""
+def train(samples: list[tuple[datetime, list[float], int]], now: datetime | None = None,
+          events: int | None = None) -> RouteModel:
+    """Entrena con [(hora, variables, 1 si no normal)] y decide si supera a la regla base.
+
+    `events`: suspensiones contadas por evento (ver events_for). Es lo que decide si hay
+    suficientes; si no se pasa, se usan las lecturas no normales."""
     now = now or datetime.now(timezone.utc)
     samples = sorted(samples, key=lambda s: s[0])
     n, pos = len(samples), sum(y for _, _, y in samples)
-    base = dict(n_samples=n, n_positive=pos, trained_utc=format_ts(now))
-    if n < config.MODEL_MIN_SAMPLES or pos < config.MODEL_MIN_POSITIVES or pos == n:
+    ev = pos if events is None else events
+    base = dict(n_samples=n, n_positive=pos, n_events=ev, trained_utc=format_ts(now))
+    if n < config.MODEL_MIN_SAMPLES or ev < config.MODEL_MIN_POSITIVES or pos == 0 or pos == n:
         return RouteModel(kind="prior", **base, reason=(
-            f"Regla base: hacen falta al menos {config.MODEL_MIN_SAMPLES} muestras y "
-            f"{config.MODEL_MIN_POSITIVES} suspensiones registradas (hay {n} y {pos})."))
+            f"Regla base: hacen falta al menos {config.MODEL_MIN_POSITIVES} suspensiones distintas "
+            f"(temporales o zarpes cancelados) y {config.MODEL_MIN_SAMPLES} muestras (hay {ev} y {n})."))
 
     # Validación: aprende con el 80 % más viejo y se mide con el 20 % más reciente.
     cut = int(n * 0.8)
@@ -224,7 +233,7 @@ def train(samples: list[tuple[datetime, list[float], int]], now: datetime | None
 
     w, b, m, s = _fit([x for _, x, _ in samples], [y for _, _, y in samples])  # final, con todo
     return RouteModel(kind="trained", weights=w, bias=b, means=m, stds=s, **base, metrics=metrics,
-                      reason=f"Aprendido de {n} muestras con {pos} casos no normales.")
+                      reason=f"Aprendido de {n} muestras con {ev} suspensiones distintas.")
 
 
 # ------------------------------------------------------------------ datos de entrenamiento
@@ -267,10 +276,35 @@ def samples_for(route_key: str) -> list[tuple[datetime, list[float], int]]:
     return out
 
 
+def events_for(route_key: str) -> int:
+    """Cuántas suspensiones DISTINTAS hubo: cada vez que el estado pasa de normal a no normal
+    cuenta 1 (un temporal de 3,5 h es 1, no 7 lecturas), y cada zarpe cancelado cuenta 1
+    aunque TABSA lo haya mostrado en varias lecturas (se toma el último estado leído)."""
+    route = config.ROUTES[route_key]
+    n = 0
+    if route.get("tabsa"):
+        rows = sorted((r for r in storage.read_rows(storage.TABSA_STATE)
+                       if r["crossing"] == route["tabsa"] and r["status"]), key=lambda r: r["ts_utc"])
+        prev = 0
+        for r in rows:
+            cur = is_disrupted(r["status"])
+            n += cur and not prev
+            prev = cur
+    if route.get("scheduled"):
+        last: dict[tuple, tuple[str, str]] = {}
+        for r in storage.read_rows(storage.TABSA_SAILINGS):
+            if r["status"] and is_route_sailing(r, route_key):
+                k = (r["date"], r["departure"], _port(r["origin"]))
+                if k not in last or r["ts_utc"] >= last[k][0]:
+                    last[k] = (r["ts_utc"], r["status"])
+        n += sum(is_disrupted(st) for _, st in last.values())
+    return n
+
+
 # ------------------------------------------------------------------ guardar / cargar
 
 def train_all(now: datetime | None = None) -> dict[str, RouteModel]:
-    models = {key: train(samples_for(key), now) for key in config.ROUTES}
+    models = {key: train(samples_for(key), now, events=events_for(key)) for key in config.ROUTES}
     path = model_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {"version": 1, "trained_utc": format_ts(now or datetime.now(timezone.utc)),

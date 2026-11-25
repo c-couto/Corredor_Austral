@@ -119,5 +119,45 @@ class TrainingDataTest(TempDataDir):
         self.assertEqual(model.load()["rio_verde"].predict(70), 0.5)
 
 
+class EventosTest(TempDataDir):
+    """Se cuenta por temporal y por zarpe, no por lectura de 30 min."""
+
+    def estado(self, *pares):
+        storage.append_rows(storage.TABSA_STATE, [
+            {"ts_utc": ts, "crossing": "primera_angostura", "status": st} for ts, st in pares])
+
+    def test_un_temporal_largo_cuenta_una_vez(self):
+        # 3,5 h suspendido = 7 lecturas, pero es 1 temporal. Después, otro.
+        horas = [f"2026-11-24T{h:02d}:{m:02d}:00Z" for h in range(14, 22) for m in (0, 30)]
+        self.estado(*[(t, "NORMAL") for t in horas[:2]],
+                    *[(t, "SUSPENDIDO") for t in horas[2:9]],
+                    *[(t, "NORMAL") for t in horas[9:12]],
+                    *[(t, "SUSPENDIDO") for t in horas[12:]])
+        self.assertEqual(model.events_for("primera_angostura"), 2)
+
+    def test_cada_zarpe_cancelado_una_vez_con_su_ultimo_estado(self):
+        def z(ts, dep, st, origin="Punta Arenas", dest="Porvenir"):
+            return {"ts_utc": ts, "date": "2026-11-24", "departure": dep, "origin": origin,
+                    "destination": dest, "status": st}
+        storage.append_rows(storage.TABSA_SAILINGS, [
+            z("2026-11-24T10:00:00Z", "09:00", "CANCELADO"),
+            z("2026-11-24T10:30:00Z", "09:00", "CANCELADO"),     # el mismo zarpe leído otra vez
+            z("2026-11-24T10:00:00Z", "14:00", "CANCELADO"),
+            z("2026-11-24T12:00:00Z", "14:00", "NORMAL"),        # después lo reprogramaron normal
+            z("2026-11-24T10:00:00Z", "11:00", "CANCELADO", "Porvenir", "Punta Arenas"),
+            z("2026-11-24T10:00:00Z", "06:00", "CANCELADO", "Punta Arenas", "Puerto Williams"),  # otra ruta
+        ])
+        self.assertEqual(model.events_for("punta_arenas_porvenir"), 2)
+
+    def test_muchas_lecturas_de_pocos_temporales_no_alcanzan_para_aprender(self):
+        s = synthetic(1500, threshold=60)
+        self.assertEqual(model.train(s).kind, "trained")             # contando lecturas, aprendería
+        m = model.train(s, events=2)                                  # pero son solo 2 temporales
+        self.assertEqual(m.kind, "prior")
+        self.assertEqual(m.n_events, 2)
+        self.assertIn("2 y 1500", m.reason)
+        self.assertEqual(model.train(s, events=8).kind, "trained")
+
+
 if __name__ == "__main__":
     unittest.main()
