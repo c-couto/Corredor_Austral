@@ -76,6 +76,26 @@ class VentanasTest(TempDataDir):
         self.assertIn("hoy 18:00 → mañana 14:00", html)
 
 
+class MetodoHonestoTest(TempDataDir):
+    def test_regla_base_dice_cuantos_temporales_hacen_falta(self):
+        add_run(NOW - timedelta(hours=3), {"punta_delgada": 40}, "NORMAL")
+        add_run(NOW - timedelta(minutes=5), {"punta_delgada": 40}, "NORMAL")
+        html = web.render(conditions.snapshot(now=NOW, fetch_forecast=False), now=NOW)
+        met = html.split("Cómo calculamos la probabilidad")[1].split("</section>")[0]
+        self.assertIn("Regla base (hacen falta 8 temporales; hay 0)", met)
+        self.assertIn("hacen falta 8 zarpes cancelados", met)
+        self.assertNotIn("acierta el orden", html)
+
+    def test_aprendido_muestra_cuanto_mejora_con_datos_nuevos(self):
+        snap = conditions.snapshot(now=NOW, fetch_forecast=False)
+        m = snap.routes[0].model
+        m.kind, m.n_events = "trained", 9
+        m.metrics = {"brier_modelo": 0.03, "brier_regla_base": 0.06, "auc_modelo": 0.98}
+        met = web.render(snap, now=NOW).split("Cómo calculamos la probabilidad")[1].split("</section>")[0]
+        self.assertIn("Aprendido con 9 temporales; probado con datos nuevos: 50 % menos error que la regla base", met)
+        self.assertNotIn("98 %", met)
+
+
 if __name__ == "__main__":
     import unittest
     unittest.main()

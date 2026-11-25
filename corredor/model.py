@@ -36,6 +36,7 @@ from .timeutil import format_ts, local_to_utc, parse_ts
 
 FEATURES = ("rafaga_kmh", "viento_kmh", "dir_seno", "dir_coseno")
 SAILING_WINDOW = timedelta(hours=1)
+MIN_TEST_EVENTS = 2  # temporales distintos que debe tener la prueba con datos nuevos
 
 # Puertos de cada cruce con horario. TABSA publica en la misma tabla otras rutas
 # (Puerto Natales -> Puerto Edén, Punta Arenas -> Puerto Williams...) que NO son de este cruce.
@@ -77,10 +78,12 @@ def level_for_prob(p: float | None) -> str | None:
     return "bajo"
 
 
-def prior_probability(gust_kmh: float | None) -> float | None:
+def prior_probability(gust_kmh: float | None, route: str | None = None) -> float | None:
+    """Regla base: curva sobre la ráfaga. Cada cruce puede tener la suya (config.PRIOR_BY_ROUTE)."""
     if gust_kmh is None:
         return None
-    return sigmoid((gust_kmh - config.PRIOR_CENTER_KMH) / config.PRIOR_SCALE_KMH)
+    center, scale = config.PRIOR_BY_ROUTE.get(route, (config.PRIOR_CENTER_KMH, config.PRIOR_SCALE_KMH))
+    return sigmoid((gust_kmh - center) / scale)
 
 
 def vector(gust: float, wind: float | None, dir_deg: float | None) -> list[float]:
@@ -116,6 +119,7 @@ class RouteModel:
     trained_utc: str = ""
     reason: str = ""                    # por qué se usa este modelo (se muestra en la web)
     metrics: dict = field(default_factory=dict)
+    route: str = ""                     # a qué cruce pertenece (elige su regla base)
 
     def predict(self, gust: float | None, wind: float | None = None, dir_deg: float | None = None) -> float | None:
         if gust is None:
@@ -124,7 +128,7 @@ class RouteModel:
 
     def predict_vector(self, x: list[float]) -> float:
         if self.kind != "trained":
-            return prior_probability(x[0])
+            return prior_probability(x[0], self.route or None)
         z = self.bias + sum(w * (xi - m) / s for w, xi, m, s in zip(self.weights, x, self.means, self.stds))
         return sigmoid(z)
 
@@ -193,8 +197,18 @@ def auc(probs: list[float], ys: list[int]) -> float | None:
     return wins / (len(pos) * len(neg))
 
 
+def distinct_events(samples: list[tuple[datetime, list[float], int]]) -> int:
+    """Temporales distintos dentro de una serie: cada paso de normal a no normal cuenta 1.
+    Una serie que ya empieza "en suspensión" no suma ese primero (puede venir de antes)."""
+    n, prev = 0, 1
+    for _, _, y in sorted(samples, key=lambda s: s[0]):
+        n += bool(y) and not prev
+        prev = y
+    return n
+
+
 def train(samples: list[tuple[datetime, list[float], int]], now: datetime | None = None,
-          events: int | None = None) -> RouteModel:
+          events: int | None = None, route: str | None = None) -> RouteModel:
     """Entrena con [(hora, variables, 1 si no normal)] y decide si supera a la regla base.
 
     `events`: suspensiones contadas por evento (ver events_for). Es lo que decide si hay
@@ -203,31 +217,37 @@ def train(samples: list[tuple[datetime, list[float], int]], now: datetime | None
     samples = sorted(samples, key=lambda s: s[0])
     n, pos = len(samples), sum(y for _, _, y in samples)
     ev = pos if events is None else events
-    base = dict(n_samples=n, n_positive=pos, n_events=ev, trained_utc=format_ts(now))
+    base = dict(n_samples=n, n_positive=pos, n_events=ev, trained_utc=format_ts(now), route=route or "")
     if n < config.MODEL_MIN_SAMPLES or ev < config.MODEL_MIN_POSITIVES or pos == 0 or pos == n:
         return RouteModel(kind="prior", **base, reason=(
             f"Regla base: hacen falta al menos {config.MODEL_MIN_POSITIVES} suspensiones distintas "
             f"(temporales o zarpes cancelados) y {config.MODEL_MIN_SAMPLES} muestras (hay {ev} y {n})."))
 
-    # Validación: aprende con el 80 % más viejo y se mide con el 20 % más reciente.
+    # Validación: aprende con el 80 % más viejo y se prueba con el 20 % más reciente, que NO usó.
+    # Sin esa prueba no hay "aprendido": un modelo medido con los mismos datos que aprendió
+    # siempre parece bueno. Y la prueba tiene que incluir al menos 2 temporales distintos.
     cut = int(n * 0.8)
     train_s, test_s = samples[:cut], samples[cut:]
-    test_ok = sum(y for _, _, y in test_s) >= 2 and sum(1 - y for _, _, y in test_s) >= 2 \
-        and 0 < sum(y for _, _, y in train_s) < len(train_s)
-    eval_s = test_s if test_ok else samples
-    fit_s = train_s if test_ok else samples
-    w, b, m, s = _fit([x for _, x, _ in fit_s], [y for _, _, y in fit_s])
-    trial = RouteModel(kind="trained", weights=w, bias=b, means=m, stds=s)
-    ys = [y for _, _, y in eval_s]
-    p_model = [trial.predict_vector(x) for _, x, _ in eval_s]
-    p_prior = [prior_probability(x[0]) for _, x, _ in eval_s]
+    test_events = distinct_events(test_s)
+    test_ok = (test_events >= MIN_TEST_EVENTS and sum(1 - y for _, _, y in test_s) >= 2
+               and 0 < sum(y for _, _, y in train_s) < len(train_s))
+    if not test_ok:
+        return RouteModel(kind="prior", **base, reason=(
+            f"Regla base: todavía no hay datos nuevos para probar el modelo "
+            f"(el 20 % más reciente necesita al menos {MIN_TEST_EVENTS} suspensiones distintas; tiene {test_events})."))
+    w, b, m, s = _fit([x for _, x, _ in train_s], [y for _, _, y in train_s])
+    trial = RouteModel(kind="trained", weights=w, bias=b, means=m, stds=s, route=route or "")
+    ys = [y for _, _, y in test_s]
+    p_model = [trial.predict_vector(x) for _, x, _ in test_s]
+    p_prior = [prior_probability(x[0], route) for _, x, _ in test_s]
     metrics = {
-        "evaluado_en": "datos nuevos (20 % más reciente)" if test_ok else "los mismos datos (todavía no hay suficientes para separar)",
+        "evaluado_en": "datos nuevos (20 % más reciente)",
+        "temporales_prueba": test_events,
         "brier_modelo": round(brier(p_model, ys), 4),
         "brier_regla_base": round(brier(p_prior, ys), 4),
         "auc_modelo": None if auc(p_model, ys) is None else round(auc(p_model, ys), 3),
     }
-    if metrics["brier_modelo"] > metrics["brier_regla_base"]:
+    if metrics["brier_modelo"] >= metrics["brier_regla_base"]:
         return RouteModel(kind="prior", **base, metrics=metrics,
                           reason="Regla base: el modelo aprendido todavía no predice mejor que ella.")
 
@@ -304,7 +324,7 @@ def events_for(route_key: str) -> int:
 # ------------------------------------------------------------------ guardar / cargar
 
 def train_all(now: datetime | None = None) -> dict[str, RouteModel]:
-    models = {key: train(samples_for(key), now, events=events_for(key)) for key in config.ROUTES}
+    models = {key: train(samples_for(key), now, events=events_for(key), route=key) for key in config.ROUTES}
     path = model_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {"version": 1, "trained_utc": format_ts(now or datetime.now(timezone.utc)),
@@ -314,14 +334,14 @@ def train_all(now: datetime | None = None) -> dict[str, RouteModel]:
 
 
 def load() -> dict[str, RouteModel]:
-    models = {key: RouteModel(reason="Regla base: todavía no se entrenó el modelo.") for key in config.ROUTES}
+    models = {key: RouteModel(reason="Regla base: todavía no se entrenó el modelo.", route=key) for key in config.ROUTES}
     path = model_path()
     if path.exists():
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
             for key, m in data.get("routes", {}).items():
                 if key in models:
-                    models[key] = RouteModel(**m)
+                    models[key] = RouteModel(**{**m, "route": key})
         except (ValueError, TypeError) as e:
             print(f"[aviso] modelo ilegible, se usa la regla base: {e}")
     return models
