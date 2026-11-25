@@ -116,7 +116,8 @@ class TrainingDataTest(TempDataDir):
 
     def test_sin_modelo_guardado_usa_regla_base(self):
         self.assertTrue(model.is_stale())
-        self.assertEqual(model.load()["rio_verde"].predict(70), 0.5)
+        self.assertAlmostEqual(model.load()["rio_verde"].predict(85), 0.5)
+        self.assertEqual(model.load()["primera_angostura"].predict(70), 0.5)
 
 
 def tormentas(n_normal, bloques, seed=3):
@@ -170,19 +171,25 @@ class ValidacionHonestaTest(unittest.TestCase):
 
 
 class ReglaBasePorCruceTest(unittest.TestCase):
-    def test_hoy_los_tres_cruces_valen_lo_mismo(self):
-        for ruta in config.ROUTES:
+    def test_primera_angostura_y_porvenir_siguen_con_la_regla_general(self):
+        for ruta in ("primera_angostura", "punta_arenas_porvenir"):
             self.assertEqual(config.PRIOR_BY_ROUTE[ruta], (config.PRIOR_CENTER_KMH, config.PRIOR_SCALE_KMH))
             self.assertAlmostEqual(model.RouteModel(route=ruta).predict(70), 0.5)
             self.assertAlmostEqual(model.RouteModel(route=ruta).predict(50), model.prior_probability(50))
 
+    def test_rio_verde_aguanta_mas_viento(self):
+        rv = model.RouteModel(route="rio_verde")
+        self.assertAlmostEqual(rv.predict(85), 0.5)
+        self.assertLess(rv.predict(81), 0.5)    # operó normal con 81 km/h
+        self.assertLess(rv.predict(60), 0.2)    # a 60 sigue siendo "normal" (antes ya daba 'medio')
+
     def test_cada_cruce_puede_tener_su_umbral(self):
         from unittest import mock
-        with mock.patch.dict(config.PRIOR_BY_ROUTE, {"rio_verde": (85.0, 14.4)}):
-            self.assertAlmostEqual(model.RouteModel(route="rio_verde").predict(85), 0.5)
-            self.assertLess(model.RouteModel(route="rio_verde").predict(70), 0.5)
-            self.assertAlmostEqual(model.RouteModel(route="primera_angostura").predict(70), 0.5)
-        self.assertAlmostEqual(model.RouteModel(route="rio_verde").predict(70), 0.5)
+        with mock.patch.dict(config.PRIOR_BY_ROUTE, {"primera_angostura": (80.0, 14.4)}):
+            self.assertAlmostEqual(model.RouteModel(route="primera_angostura").predict(80), 0.5)
+            self.assertLess(model.RouteModel(route="primera_angostura").predict(70), 0.5)
+            self.assertAlmostEqual(model.RouteModel(route="punta_arenas_porvenir").predict(70), 0.5)
+        self.assertAlmostEqual(model.RouteModel(route="primera_angostura").predict(70), 0.5)
 
 
 class EventosTest(TempDataDir):

@@ -2,6 +2,12 @@
 
 Una entrada por bloque de mejoras. Lo más nuevo arriba.
 
+## Río Verde: regla base en 85 km/h (2026-11-25)
+- La regla base de Río Verde pasa de 70 a **85 km/h = 50 %** (`PRIOR_BY_ROUTE` en `config.py`).
+  Motivo: el 24/11 operó normal con ráfagas de hasta 81 km/h y la regla de 70 daba 27 falsas alarmas.
+  Es un piso (lo mínimo que se sabe que aguanta), no una medición: no hay temporales de Río Verde
+  para calibrarlo. Primera Angostura y Porvenir siguen en 70.
+
 ## Bloque 1 — Modelo honesto (2026-11-25)
 - **El modelo ya no se "aprueba" con los mismos datos con los que aprendió.** Para pasar de regla base
   a "aprendido" tiene que ganarle a la regla base en el 20 % más reciente de los datos, y esa prueba
