@@ -119,6 +119,72 @@ class TrainingDataTest(TempDataDir):
         self.assertEqual(model.load()["rio_verde"].predict(70), 0.5)
 
 
+def tormentas(n_normal, bloques, seed=3):
+    """Serie con temporales claros: bloques de 10 lecturas tranquilas y 3 con ráfagas de ~85 km/h."""
+    rnd = random.Random(seed)
+    out, i = [], 0
+    for b in range(bloques):
+        for y, base in [(0, 30)] * 10 + [(1, 85)] * 3:
+            g = base + rnd.uniform(-8, 8)
+            out.append((T0 + timedelta(minutes=30 * i), model.vector(g, g * 0.6, 270.0), y))
+            i += 1
+    return out
+
+
+class ValidacionHonestaTest(unittest.TestCase):
+    def test_sin_temporales_en_la_prueba_nunca_pasa_a_aprendido(self):
+        # 20 temporales en lo viejo, pero lo más reciente (20 %) es todo tranquilo: no se puede probar.
+        s = tormentas(0, 20)
+        cut = int(len(s) * 0.8)
+        s = s[:cut] + [(t, x, 0) for t, x, _ in s[cut:]]
+        m = model.train(s, events=20)
+        self.assertEqual(m.kind, "prior")
+        self.assertIn("datos nuevos para probar", m.reason)
+
+    def test_un_solo_temporal_en_la_prueba_no_alcanza(self):
+        # Lo reciente tiene 1 temporal de varias lecturas: son 2 lecturas del mismo temporal, no 2 temporales.
+        s = tormentas(0, 20)
+        cut = int(len(s) * 0.8)
+        reciente = [(t, x, 0) for t, x, _ in s[cut:]]
+        for k in (10, 11, 12):  # un único temporal
+            t, x, _ = reciente[k]
+            reciente[k] = (t, model.vector(88, 52, 270.0), 1)
+        m = model.train(s[:cut] + reciente, events=20)
+        self.assertEqual(model.distinct_events(reciente), 1)
+        self.assertEqual(m.kind, "prior")
+
+    def test_con_dos_temporales_en_la_prueba_y_ganandole_a_la_regla_base_aprende(self):
+        s = tormentas(0, 25)
+        self.assertGreaterEqual(model.distinct_events(s[int(len(s) * 0.8):]), 2)
+        m = model.train(s, events=25)
+        self.assertEqual(m.kind, "trained")
+        self.assertEqual(m.metrics["evaluado_en"], "datos nuevos (20 % más reciente)")
+        self.assertGreaterEqual(m.metrics["temporales_prueba"], 2)
+        self.assertLess(m.metrics["brier_modelo"], m.metrics["brier_regla_base"])
+
+    def test_cuenta_temporales_distintos(self):
+        y = [0, 1, 1, 1, 0, 0, 1, 0, 1, 1]
+        s = [(T0 + timedelta(minutes=30 * i), model.vector(50, 30, None), v) for i, v in enumerate(y)]
+        self.assertEqual(model.distinct_events(s), 3)
+        self.assertEqual(model.distinct_events(s[1:4]), 0)  # arranca "adentro": puede venir de antes
+
+
+class ReglaBasePorCruceTest(unittest.TestCase):
+    def test_hoy_los_tres_cruces_valen_lo_mismo(self):
+        for ruta in config.ROUTES:
+            self.assertEqual(config.PRIOR_BY_ROUTE[ruta], (config.PRIOR_CENTER_KMH, config.PRIOR_SCALE_KMH))
+            self.assertAlmostEqual(model.RouteModel(route=ruta).predict(70), 0.5)
+            self.assertAlmostEqual(model.RouteModel(route=ruta).predict(50), model.prior_probability(50))
+
+    def test_cada_cruce_puede_tener_su_umbral(self):
+        from unittest import mock
+        with mock.patch.dict(config.PRIOR_BY_ROUTE, {"rio_verde": (85.0, 14.4)}):
+            self.assertAlmostEqual(model.RouteModel(route="rio_verde").predict(85), 0.5)
+            self.assertLess(model.RouteModel(route="rio_verde").predict(70), 0.5)
+            self.assertAlmostEqual(model.RouteModel(route="primera_angostura").predict(70), 0.5)
+        self.assertAlmostEqual(model.RouteModel(route="rio_verde").predict(70), 0.5)
+
+
 class EventosTest(TempDataDir):
     """Se cuenta por temporal y por zarpe, no por lectura de 30 min."""
 

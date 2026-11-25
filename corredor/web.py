@@ -440,24 +440,22 @@ def _method(snap: Snapshot) -> str:
         m = st.model
         tag = ('<span class="pill b-bajo">aprendido</span>' if m.kind == "trained"
                else '<span class="pill b-nd">regla base</span>')
+        # Las suspensiones se cuentan por temporal (cruces con estado) o por zarpe cancelado (Porvenir).
+        by_state = bool(config.ROUTES[st.key].get("tabsa"))
+        unit = "temporales" if by_state else "zarpes cancelados"
+        center = config.PRIOR_BY_ROUTE.get(st.key, (config.PRIOR_CENTER_KMH,))[0]
         if m.kind == "trained":
-            extra = ""
-            if m.metrics.get("auc_modelo") is not None:
-                extra = f' · acierta el orden en el {round(m.metrics["auc_modelo"] * 100)} % de los casos'
-            why = f"{escape(m.reason)}{extra}"
+            gain = ""
+            bm, br = m.metrics.get("brier_modelo"), m.metrics.get("brier_regla_base")
+            if bm is not None and br:
+                gain = (f"; probado con datos nuevos: {round((1 - bm / br) * 100)} % menos error "
+                        f"que la regla base")
+            why = f"Aprendido con {m.n_events or m.n_positive} {unit}{gain}."
         else:
-            # Lo que cuenta es cuántas suspensiones REALES tenemos registradas (no las lecturas de
-            # la última vez que se entrenó, que confundían: decía 0 el mismo día de un temporal).
-            tabsa = config.ROUTES[st.key].get("tabsa")
-            if tabsa:
-                n = sum(1 for e in snap.episodes if e.subject == tabsa)
-                what = f"{n} suspensi{'ón' if n == 1 else 'ones'} registrada{'' if n == 1 else 's'}"
-            else:
-                op = next((o for o in snap.operation if o.key == st.key), None)
-                n = op.events if op else 0
-                what = f"{n} zarpe{'' if n == 1 else 's'} cancelado{'' if n == 1 else 's'} en 7 días"
-            why = (f"Por ahora usa la regla base (ráfaga de {config.PRIOR_CENTER_KMH:.0f} km/h = 50 %). "
-                   f"Lleva {what}; aprende sola cuando haya suficientes.")
+            n = (sum(1 for e in snap.episodes if e.subject == config.ROUTES[st.key]["tabsa"]) if by_state
+                 else model.events_for(st.key))
+            why = (f"Regla base (hacen falta {config.MODEL_MIN_POSITIVES} {unit}; hay {n}). "
+                   f"Ráfaga de {center:.0f} km/h = 50 % de probabilidad.")
         rows.append(f"<li><b>{escape(st.name)}</b> {tag}<br><span class='muted small'>{why}</span></li>")
     return f"""
 <section class="card">

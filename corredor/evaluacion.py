@@ -59,7 +59,7 @@ def _modelos_desde_json(texto: str) -> dict[str, model.RouteModel]:
     out = {}
     for key, m in data.get("routes", {}).items():
         try:
-            out[key] = model.RouteModel(**m)
+            out[key] = model.RouteModel(**{**m, "route": key})
         except TypeError:
             continue
     return out
@@ -95,7 +95,7 @@ def modelo_vigente(ruta: str, t: datetime, historial) -> model.RouteModel:
     for fecha, modelos in historial:
         if fecha <= t and ruta in modelos:
             vigente = modelos[ruta]
-    return vigente or model.RouteModel(reason="regla base")
+    return vigente or model.RouteModel(reason="regla base", route=ruta)
 
 
 # ------------------------------------------------------------------ datos

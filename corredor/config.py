@@ -126,6 +126,15 @@ RISK_LEVELS: tuple[tuple[float, str], ...] = ((0.5, "alto"), (0.2, "medio"))
 PRIOR_CENTER_KMH = 70.0
 PRIOR_SCALE_KMH = 14.4
 
+# Regla base POR CRUCE: (ráfaga en que da 50 %, escala). Hoy los 3 valen lo mismo que la regla
+# general; está separado para poder ajustar cada cruce con datos (ver corredor.evaluacion).
+# No cambiar a mano por un solo día de viento.
+PRIOR_BY_ROUTE: dict[str, tuple[float, float]] = {
+    "primera_angostura": (PRIOR_CENTER_KMH, PRIOR_SCALE_KMH),
+    "punta_arenas_porvenir": (PRIOR_CENTER_KMH, PRIOR_SCALE_KMH),
+    "rio_verde": (PRIOR_CENTER_KMH, PRIOR_SCALE_KMH),
+}
+
 # El modelo aprendido reemplaza a la regla base solo si hay datos suficientes y
 # además predice mejor que ella en datos que no vio.
 MODEL_MIN_SAMPLES = 60
