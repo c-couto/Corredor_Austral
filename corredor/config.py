@@ -132,7 +132,8 @@ PRIOR_SCALE_KMH = 14.4
 PRIOR_BY_ROUTE: dict[str, tuple[float, float]] = {
     "primera_angostura": (PRIOR_CENTER_KMH, PRIOR_SCALE_KMH),
     "punta_arenas_porvenir": (PRIOR_CENTER_KMH, PRIOR_SCALE_KMH),
-    "rio_verde": (PRIOR_CENTER_KMH, PRIOR_SCALE_KMH),
+    # Río Verde operó normal con ráfagas de hasta 81 km/h (24/11): 85 es un piso, no una medición.
+    "rio_verde": (85.0, PRIOR_SCALE_KMH),
 }
 
 # El modelo aprendido reemplaza a la regla base solo si hay datos suficientes y
