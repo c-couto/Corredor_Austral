@@ -183,7 +183,8 @@ function actualizarLista(regs, ruta, fuente, seleccionado, alTocar) {
     const li = filas.get(r.mmsi) || crearFila(r, alTocar);
     const s = situacion(r, ruta, ahoraSim, { suspendido: fuente.suspendido });
     li.querySelector(".que").textContent = `${r.naviera} · ${s.texto}`;
-    li.querySelector(".eta").textContent = s.eta || "";
+    // En la simulación (Primera Angostura) los tiempos son estimados: se aclara en cada uno.
+    li.querySelector(".eta").textContent = s.eta ? (fuente.simulada ? `${s.eta} (estimado)` : s.eta) : "";
     li.dataset.fase = s.fase;
     const abierta = r.mmsi === seleccionado;
     li.classList.toggle("sel", abierta);

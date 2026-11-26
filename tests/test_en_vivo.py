@@ -105,6 +105,19 @@ class DatosRioVerdeTest(unittest.TestCase):
         self.assertIn("duracion_min: 120", (CARPETA / "app.js").read_text(encoding="utf-8"))
 
 
+class PrimeraAngosturaSimuladaTest(unittest.TestCase):
+    def test_solo_ferris_reales_de_tabsa(self):
+        # Sin ferris inventados: antes había un "Kataik" con un MMSI de ejemplo y un muelle propio.
+        texto = (CARPETA / "fuente-simulada.js").read_text(encoding="utf-8")
+        self.assertNotIn("999000001", texto)
+        self.assertNotIn("Kataik", texto)
+        nombres = re.findall(r'nombre: "([^"]+)", naviera: "([^"]+)"', texto)
+        self.assertEqual(nombres, [("Pionero", "TABSA"), ("Kawéskar", "TABSA")])
+
+    def test_los_tiempos_de_la_simulacion_dicen_estimado(self):
+        self.assertIn("(estimado)", (CARPETA / "app.js").read_text(encoding="utf-8"))
+
+
 class ReglasTest(unittest.TestCase):
     def archivos(self):
         return [p for p in CARPETA.rglob("*") if p.suffix in {".js", ".html", ".css", ".json"}]

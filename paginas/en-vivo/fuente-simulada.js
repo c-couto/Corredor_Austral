@@ -20,15 +20,12 @@ export const HORARIO = {
 };
 
 // Cada ferry: primer zarpe del día y desde qué orilla. Después alterna orillas cada
-// (cruce + rampa) minutos. Elegidos para que nunca haya dos ferris en la misma rampa
-// y para que cada uno termine el día en la orilla donde arranca el siguiente.
+// (cruce + rampa) minutos. Elegidos para que nunca haya dos ferris en la misma rampa.
+// Solo ferris REALES de TABSA en este cruce (Capitanía de Puerto de Punta Delgada, 2023:
+// Pionero, Patagonia y Kawéskar). Los horarios de salida son de ejemplo.
 export const FERRIS_SIMULADOS = [
   { mmsi: 725001968, nombre: "Pionero", naviera: "TABSA", primera: "08:00", desde: "inicio", atraque_m: 0 },
   { mmsi: 725003001, nombre: "Kawéskar", naviera: "TABSA", primera: "08:00", desde: "fin", atraque_m: 0 },
-  // MMSI de ejemplo: el real del Kataik todavía no lo conocemos.
-  // Otra naviera: usa su propio muelle, a 400 m de la rampa de TABSA (posición de ejemplo),
-  // y entra a las rampas cuando los de TABSA no están maniobrando.
-  { mmsi: 999000001, nombre: "Kataik", naviera: "Naviera Tierra del Fuego", primera: "08:45", desde: "inicio", atraque_m: 400 },
 ];
 
 const MIN = 60000;
