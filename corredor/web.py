@@ -638,7 +638,7 @@ btns.forEach(function(b,i){b.addEventListener('click',function(){show(i)})});sho
 
 # Acceso a la pantalla "Ferris en vivo" (paginas/en-vivo/, se publica en en-vivo/).
 # Mini animación: una barcaza zarpa, cruza, gira y vuelve entre las dos rampas.
-ENVIVO = """<a class="envivo" href="en-vivo/index.html">
+ENVIVO = """<a class="envivo" id="envivo" href="en-vivo/index.html">
   <span class="ev-mapa" aria-hidden="true">
     <span class="ev-linea"></span><span class="ev-rampa a"></span><span class="ev-rampa b"></span>
     <svg class="ev-barco" viewBox="0 0 26 66"><path d="M5.5 1.5h15l-1.2 8h-12.6z" fill="#9AA7B4"/>
@@ -652,7 +652,11 @@ ENVIVO = """<a class="envivo" href="en-vivo/index.html">
     <b>Ver ferris en vivo</b>
     <small>Los 3 cruces en el mapa: zarpe, cruce y atraque.</small></span>
   <span class="ev-flecha" aria-hidden="true">→</span>
-</a>"""
+</a>
+<script>/* Si esta página se abrió como archivo (file://), la pantalla En vivo no puede cargar en el mismo
+   lugar: se va directo al sitio publicado, donde sí funciona. */
+if (location.protocol === "file:") document.getElementById("envivo").href = "https://c-couto.github.io/Corredor_Austral/en-vivo/";
+</script>"""
 
 ENVIVO_CSS = """
 .envivo{display:flex;align-items:center;gap:14px;margin:12px 0;padding:12px 14px;border-radius:16px;text-decoration:none;color:#EAF1F7;

@@ -2,6 +2,11 @@
 
 Una entrada por bloque de mejoras. Lo más nuevo arriba.
 
+## Botón "Ver ferris en vivo" abierto como archivo (2026-11-25)
+- Si la página principal se abre como archivo (file://) en vez de desde el sitio publicado, el botón
+  llevaba a una pantalla que no puede cargar. Ahora, en ese caso, va directo a
+  https://c-couto.github.io/Corredor_Austral/en-vivo/. En el sitio publicado no cambia nada.
+
 ## Río Verde: regla base en 85 km/h (2026-11-25)
 - La regla base de Río Verde pasa de 70 a **85 km/h = 50 %** (`PRIOR_BY_ROUTE` en `config.py`).
   Motivo: el 24/11 operó normal con ráfagas de hasta 81 km/h y la regla de 70 daba 27 falsas alarmas.
