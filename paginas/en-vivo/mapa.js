@@ -11,6 +11,8 @@ export const NAVIERAS = {
   "Naviera Tierra del Fuego": { color: "#3CC6B8", rgb: [60, 198, 184] },
 };
 export const naviera = (n) => NAVIERAS[n] || NAVIERAS.TABSA;
+/** Color de un ferry: el propio si lo trae; si no, el de su naviera. */
+export const colorDe = (reg) => (reg.color ? { color: reg.color, rgb: reg.rgb } : naviera(reg.naviera));
 
 // Estela y espuma se miden en PÍXELES de pantalla (y se pasan a metros según el zoom):
 // así se ven igual de lejos o de cerca, y no quedan tapadas por el ícono del barco.
@@ -127,7 +129,7 @@ function elementoFerry(reg, onClick) {
   const el = document.createElement("button");
   el.type = "button";
   el.className = "ferry";
-  el.style.setProperty("--c", naviera(reg.naviera).color);
+  el.style.setProperty("--c", colorDe(reg).color);
   el.setAttribute("aria-label", `Ferry ${reg.nombre}`);
   el.innerHTML = '<span class="anillo" aria-hidden="true"></span>' + BARCAZA_SVG;
   el.addEventListener("click", (e) => { e.stopPropagation(); onClick(reg.mmsi); });
@@ -216,7 +218,7 @@ export function crearMapa(contenedor, ruta, {
 
   function agregarFerry(reg) {
     const id = reg.mmsi;
-    const { rgb } = naviera(reg.naviera);
+    const { rgb } = colorDe(reg);
     const el = elementoFerry(reg, onSeleccion);
     const marker = new maplibregl.Marker({ element: el, rotationAlignment: "map", pitchAlignment: "map" })
       .setLngLat([reg.lon, reg.lat]).setRotation(reg.rumbo || 0).addTo(map);

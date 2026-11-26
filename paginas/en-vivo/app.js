@@ -15,7 +15,7 @@ import { Ruta } from "./ruta.js";
 import { crearFuenteSimulada, hoyALas } from "./fuente-simulada.js";
 import { crearFuenteHorario } from "./fuente-horario.js";
 import { zarpesDelHorario, aplicarEstado } from "./horario-fijo.js";
-import { crearMapa, naviera } from "./mapa.js";
+import { crearMapa, colorDe } from "./mapa.js";
 import { situacion, cardinal, horaLocal } from "./situacion.js";
 import { estadoTabsa, lecturasTabsa, vientoPuntaDelgada, zarpesTabsa } from "./estado.js";
 
@@ -157,7 +157,7 @@ const filas = new Map();
 function crearFila(reg, alTocar) {
   const li = document.createElement("li");
   li.className = "fila";
-  li.style.setProperty("--c", naviera(reg.naviera).color);
+  li.style.setProperty("--c", colorDe(reg).color);
   li.innerHTML = `
     <button type="button" class="fila-boton" aria-expanded="false">
       <span class="marca-color" aria-hidden="true"></span>

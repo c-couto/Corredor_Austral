@@ -23,9 +23,10 @@ export const HORARIO = {
 // (cruce + rampa) minutos. Elegidos para que nunca haya dos ferris en la misma rampa.
 // Solo ferris REALES de TABSA en este cruce (Capitanía de Puerto de Punta Delgada, 2023:
 // Pionero, Patagonia y Kawéskar). Los horarios de salida son de ejemplo.
+// Cada ferry lleva su propio color (en el mapa y en la lista) para distinguirlos.
 export const FERRIS_SIMULADOS = [
-  { mmsi: 725001968, nombre: "Pionero", naviera: "TABSA", primera: "08:00", desde: "inicio", atraque_m: 0 },
-  { mmsi: 725003001, nombre: "Kawéskar", naviera: "TABSA", primera: "08:00", desde: "fin", atraque_m: 0 },
+  { mmsi: 725001968, nombre: "Pionero", naviera: "TABSA", color: "#F59E42", rgb: [245, 158, 66], primera: "08:00", desde: "inicio", atraque_m: 0 },
+  { mmsi: 725003001, nombre: "Kawéskar", naviera: "TABSA", color: "#3CC6B8", rgb: [60, 198, 184], primera: "08:00", desde: "fin", atraque_m: 0 },
 ];
 
 const MIN = 60000;
