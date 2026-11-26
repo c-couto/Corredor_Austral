@@ -86,6 +86,7 @@ export function registro(barco, e, t) {
     mmsi: barco.mmsi,
     nombre: barco.nombre,
     naviera: barco.naviera,
+    ...(barco.color ? { color: barco.color, rgb: barco.rgb } : {}), // color propio del ferry
     lat: e.punto[1],
     lon: e.punto[0],
     velocidad_nudos: Math.round(e.nudos * 10) / 10,

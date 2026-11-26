@@ -114,6 +114,12 @@ class PrimeraAngosturaSimuladaTest(unittest.TestCase):
         nombres = re.findall(r'nombre: "([^"]+)", naviera: "([^"]+)"', texto)
         self.assertEqual(nombres, [("Pionero", "TABSA"), ("Kawéskar", "TABSA")])
 
+    def test_cada_ferry_tiene_su_propio_color(self):
+        texto = (CARPETA / "fuente-simulada.js").read_text(encoding="utf-8")
+        colores = re.findall(r'nombre: "[^"]+", naviera: "[^"]+", color: "(#[0-9A-Fa-f]{6})"', texto)
+        self.assertEqual(len(colores), 2)
+        self.assertEqual(len(set(colores)), 2)  # distintos entre sí
+
     def test_los_tiempos_de_la_simulacion_dicen_estimado(self):
         self.assertIn("(estimado)", (CARPETA / "app.js").read_text(encoding="utf-8"))
 
