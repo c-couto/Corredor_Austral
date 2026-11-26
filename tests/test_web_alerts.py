@@ -36,16 +36,16 @@ def add_forecast(start, gusts):
 class SnapshotTest(TempDataDir):
     def test_estado_oficial_probabilidad_y_pronostico(self):
         add_run(NOW - timedelta(minutes=30), {"punta_delgada": 30, "bahia_azul": 20}, "NORMAL")
-        add_run(NOW - timedelta(minutes=5), {"punta_delgada": 55, "bahia_azul": 72}, "SUSPENDIDO")
+        add_run(NOW - timedelta(minutes=5), {"punta_delgada": 55, "bahia_azul": 100}, "SUSPENDIDO")
         add_forecast(NOW, [40] * 10 + [90] + [40] * 37)
         snap = conditions.snapshot(now=NOW, fetch_forecast=False)
         pa = snap.route("primera_angostura")
-        self.assertEqual(pa.gust_kmh, 72)
-        self.assertEqual(pa.level, "alto")              # 72 km/h con la regla base
+        self.assertEqual(pa.gust_kmh, 100)
+        self.assertEqual(pa.level, "alto")              # 100 km/h: sobre los 94 de la regla base de este cruce
         self.assertEqual((pa.official, pa.official_fresh), ("SUSPENDIDO", True))
         self.assertEqual(len(pa.hours), 48)
         self.assertEqual(pa.peak().gust, 90)
-        self.assertEqual([g for _, g in pa.history], [30, 72])
+        self.assertEqual([g for _, g in pa.history], [30, 100])
         self.assertEqual(snap.episodes[0].status, "SUSPENDIDO")
         self.assertIsNone(snap.episodes[0].end)          # sigue suspendido
 
@@ -94,7 +94,7 @@ class AlertsTest(TempDataDir):
 
     def test_cambio_de_riesgo_por_viento(self):
         add_run(NOW - timedelta(minutes=35), {"punta_delgada": 30})
-        add_run(NOW - timedelta(minutes=5), {"punta_delgada": 75})
+        add_run(NOW - timedelta(minutes=5), {"punta_delgada": 100})
         self.assertIn(("Primera Angostura", "bajo", "alto"), alerts.risk_changes(now=NOW))
 
     def test_sin_cambios_no_envia(self):
@@ -106,7 +106,7 @@ class AlertsTest(TempDataDir):
 class EasyReadingTest(TempDataDir):
     def test_ventanas_de_posible_suspension(self):
         add_run(NOW - timedelta(minutes=5), {"punta_delgada": 30})
-        add_forecast(NOW, [30] * 5 + [60, 75, 80, 55] + [30] * 39)
+        add_forecast(NOW, [30] * 5 + [85, 95, 100, 85] + [30] * 39)
         st = conditions.snapshot(now=NOW, fetch_forecast=False).route("primera_angostura")
         wins = conditions.closure_windows(st, "medio", 48)
         self.assertEqual(len(wins), 1)

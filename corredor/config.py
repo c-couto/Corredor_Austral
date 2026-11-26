@@ -130,7 +130,10 @@ PRIOR_SCALE_KMH = 14.4
 # general; está separado para poder ajustar cada cruce con datos (ver corredor.evaluacion).
 # No cambiar a mano por un solo día de viento.
 PRIOR_BY_ROUTE: dict[str, tuple[float, float]] = {
-    "primera_angostura": (PRIOR_CENTER_KMH, PRIOR_SCALE_KMH),
+    # Primera Angostura: lo que había aprendido el modelo con los datos reales del 24/11 (rojo desde
+    # 94 km/h, amarillo desde 79). PROVISIONAL: sale de solo 2 temporales; se revisa al tener 8.
+    # Con 70 daba 32 falsas alarmas rojas en 282 lecturas normales; con 94/79, 0.
+    "primera_angostura": (94.0, 10.8),
     "punta_arenas_porvenir": (PRIOR_CENTER_KMH, PRIOR_SCALE_KMH),
     # Río Verde operó normal con ráfagas de hasta 81 km/h (24/11): 85 es un piso, no una medición.
     "rio_verde": (85.0, PRIOR_SCALE_KMH),
