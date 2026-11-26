@@ -13,6 +13,14 @@ Una entrada por bloque de mejoras. Lo más nuevo arriba.
   Es un piso (lo mínimo que se sabe que aguanta), no una medición: no hay temporales de Río Verde
   para calibrarlo. Primera Angostura y Porvenir siguen en 70.
 
+## Primera Angostura: regla base en 94 / 79 km/h (2026-11-26)
+- La regla base de Primera Angostura pasa de 70 a **rojo desde 94 km/h y amarillo desde 79**
+  (`PRIOR_BY_ROUTE` en `config.py`): lo que había aprendido el modelo con los datos reales.
+  Con 70 daba 32 falsas alarmas rojas en 282 lecturas normales; con 94/79, 0 (y 13 amarillas).
+- **Provisional**: sale de solo 2 temporales (los dos del 24/11). El 24/11 las suspensiones fueron con
+  ráfagas de 91–92 km/h, así que salen en amarillo y no en rojo. Se revisa al tener 8 temporales.
+- Porvenir (70) y Río Verde (85) no cambian.
+
 ## Bloque 1 — Modelo honesto (2026-11-25)
 - **El modelo ya no se "aprueba" con los mismos datos con los que aprendió.** Para pasar de regla base
   a "aprendido" tiene que ganarle a la regla base en el 20 % más reciente de los datos, y esa prueba

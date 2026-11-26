@@ -27,22 +27,23 @@ def pronostico(emitido, horas_rafaga):
 
 class EvaluacionTest(TempDataDir):
     def test_mide_la_probabilidad_que_dabamos_antes_de_la_suspension(self):
-        # 3 h antes el pronóstico ya anunciaba 80 km/h para las 15:00
-        pronostico(T0, [(T0 + timedelta(hours=3), 80)])
+        # 3 h antes el pronóstico ya anunciaba 98 km/h para las 15:00 (la regla base de este cruce marca rojo desde 94)
+        pronostico(T0, [(T0 + timedelta(hours=3), 98)])
         corrida(T0 + timedelta(hours=2, minutes=30), 40, "NORMAL")
-        corrida(T0 + timedelta(hours=3), 82, "SUSPENDIDO")
-        corrida(T0 + timedelta(hours=3, minutes=30), 85, "SUSPENDIDO")
+        corrida(T0 + timedelta(hours=3), 100, "SUSPENDIDO")
+        corrida(T0 + timedelta(hours=3, minutes=30), 105, "SUSPENDIDO")
         corrida(T0 + timedelta(hours=4), 45, "NORMAL")
         res = evaluacion.evaluar(historial=[])["primera_angostura"]
         self.assertEqual(len(res["episodios"]), 1)
         ep = res["episodios"][0]
-        self.assertAlmostEqual(ep["p0"], model.prior_probability(82))
-        self.assertAlmostEqual(ep["p3"], model.prior_probability(80))   # lo que decía el pronóstico 3 h antes
+        self.assertAlmostEqual(ep["p0"], model.prior_probability(100, "primera_angostura"))
+        self.assertAlmostEqual(ep["p3"], model.prior_probability(98, "primera_angostura"))   # lo que decía el pronóstico 3 h antes
         self.assertIsNone(ep["p24"])                                     # no había pronóstico de 24 h antes
         m0 = res["metricas"][0]
         self.assertEqual((m0["n"], m0["suspensiones"], m0["detectadas_50"], m0["falsas_alarmas_50"]), (4, 2, 2, 0))
         self.assertLess(m0["brier"], m0["brier_referencia"])  # la regla base le gana a "decir el promedio"
-        self.assertIn("3 h antes: 67 %", evaluacion.texto({"primera_angostura": res}))  # regla base con 80 km/h
+        pct = round(model.prior_probability(98, "primera_angostura") * 100)
+        self.assertIn(f"3 h antes: {pct} %", evaluacion.texto({"primera_angostura": res}))  # regla base con 98 km/h
 
     def test_no_usa_pronosticos_del_futuro_ni_demasiado_viejos(self):
         corrida(T0, 30, "NORMAL")
