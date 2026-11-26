@@ -2,6 +2,11 @@
 
 Una entrada por bloque de mejoras. Lo más nuevo arriba.
 
+## En vivo: el ferry espera en la rampa correcta (2026-11-26)
+- Hallado un día de viento: con todos los zarpes de hoy cancelados, el ferry de Punta Arenas–Porvenir
+  figuraba en Punta Arenas "esperando" un zarpe de mañana que sale de Porvenir. Ahora, en reposo, el
+  ferry está en la rampa desde donde sale el próximo zarpe. Prueba nueva (usa Node.js si está instalado).
+
 ## En vivo abierto como archivo: va solo a la versión publicada (2026-11-26)
 - Si la pantalla En vivo se abre como archivo (`file://`), ahora **redirige sola** a
   https://c-couto.github.io/Corredor_Austral/en-vivo/ en vez de quedarse en el cartel de aviso
