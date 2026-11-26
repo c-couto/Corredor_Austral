@@ -184,6 +184,11 @@ class AccesoDesdeLaWebTest(unittest.TestCase):
         self.assertIn('location.protocol === "file:"', html)
         self.assertIn("https://c-couto.github.io/Corredor_Austral/en-vivo/", html)
 
+    def test_pantalla_abierta_como_archivo_lleva_al_sitio_publicado(self):
+        html = (CARPETA / "index.html").read_text(encoding="utf-8")
+        self.assertIn('location.protocol === "file:"', html)
+        self.assertIn('location.replace("https://c-couto.github.io/Corredor_Austral/en-vivo/")', html)
+
     def test_pages_copia_la_pantalla(self):
         wf = (CARPETA.parent.parent / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8")
         self.assertIn("cp -r paginas/en-vivo _site/en-vivo", wf)

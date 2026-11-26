@@ -18,12 +18,18 @@
 <body>
 <!-- Abierta como archivo local (file://), Chrome bloquea los módulos JavaScript y el mapa no carga. -->
 <div id="aviso-local" hidden style="margin:16px;padding:14px 16px;border-radius:14px;background:#3A2A12;color:#FFC27A;font:15px/1.45 system-ui,sans-serif">
-  <b>Esta pantalla no funciona abierta como archivo.</b><br>
-  Miralá en el sitio publicado:
+  <b>Esta pantalla no funciona abierta como archivo.</b> Te llevamos a la versión publicada; si no abre, probá este link:<br>
+  Sitio publicado:
   <a style="color:#FFC27A" href="https://c-couto.github.io/Corredor_Austral/en-vivo/">c-couto.github.io/Corredor_Austral/en-vivo/</a><br>
   o en tu compu con <code>python -m http.server</code> dentro de la carpeta y abriendo <code>http://localhost:8000</code>.
 </div>
-<script>if (location.protocol === "file:") document.getElementById("aviso-local").hidden = false;</script>
+<script>
+// Abierta como archivo no puede cargar: lleva sola a la versión publicada (si no hay internet queda el aviso).
+if (location.protocol === "file:") {
+  document.getElementById("aviso-local").hidden = false;
+  location.replace("https://c-couto.github.io/Corredor_Austral/en-vivo/");
+}
+</script>
 <div class="app">
   <header class="cabecera">
     <div>
