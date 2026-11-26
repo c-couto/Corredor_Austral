@@ -1,6 +1,6 @@
 {
  "version": 1,
- "trained_utc": "2026-11-25T00:05:40Z",
+ "trained_utc": "2026-11-26T00:06:10Z",
  "features": [
   "rafaga_kmh",
   "viento_kmh",
@@ -9,36 +9,18 @@
  ],
  "routes": {
   "primera_angostura": {
-   "kind": "trained",
-   "weights": [
-    0.953258203203526,
-    1.0150273457735888,
-    -0.005707673810991102,
-    -0.3459656945203655
-   ],
-   "bias": -5.290002587241682,
-   "means": [
-    40.40495867768595,
-    23.440495867768597,
-    -0.660546521458105,
-    -0.007811645705093857
-   ],
-   "stds": [
-    20.70499341393326,
-    13.11811616257996,
-    0.49451152722941905,
-    0.5648677903883377
-   ],
-   "n_samples": 242,
+   "kind": "prior",
+   "weights": [],
+   "bias": 0.0,
+   "means": [],
+   "stds": [],
+   "n_samples": 292,
    "n_positive": 10,
-   "trained_utc": "2026-11-25T00:05:40Z",
-   "reason": "Aprendido de 242 muestras con 10 casos no normales.",
-   "metrics": {
-    "evaluado_en": "los mismos datos (todavía no hay suficientes para separar)",
-    "brier_modelo": 0.0243,
-    "brier_regla_base": 0.0566,
-    "auc_modelo": 0.977
-   }
+   "n_events": 2,
+   "trained_utc": "2026-11-26T00:06:10Z",
+   "reason": "Regla base: hacen falta al menos 8 suspensiones distintas (temporales o zarpes cancelados) y 60 muestras (hay 2 y 292).",
+   "metrics": {},
+   "route": "primera_angostura"
   },
   "punta_arenas_porvenir": {
    "kind": "prior",
@@ -46,11 +28,13 @@
    "bias": 0.0,
    "means": [],
    "stds": [],
-   "n_samples": 48,
+   "n_samples": 65,
    "n_positive": 11,
-   "trained_utc": "2026-11-25T00:05:40Z",
-   "reason": "Regla base: hacen falta al menos 60 muestras y 8 suspensiones registradas (hay 48 y 11).",
-   "metrics": {}
+   "n_events": 3,
+   "trained_utc": "2026-11-26T00:06:10Z",
+   "reason": "Regla base: hacen falta al menos 8 suspensiones distintas (temporales o zarpes cancelados) y 60 muestras (hay 3 y 65).",
+   "metrics": {},
+   "route": "punta_arenas_porvenir"
   },
   "rio_verde": {
    "kind": "prior",
@@ -58,11 +42,13 @@
    "bias": 0.0,
    "means": [],
    "stds": [],
-   "n_samples": 242,
+   "n_samples": 292,
    "n_positive": 1,
-   "trained_utc": "2026-11-25T00:05:40Z",
-   "reason": "Regla base: hacen falta al menos 60 muestras y 8 suspensiones registradas (hay 242 y 1).",
-   "metrics": {}
+   "n_events": 1,
+   "trained_utc": "2026-11-26T00:06:10Z",
+   "reason": "Regla base: hacen falta al menos 8 suspensiones distintas (temporales o zarpes cancelados) y 60 muestras (hay 1 y 292).",
+   "metrics": {},
+   "route": "rio_verde"
   }
  }
 }
