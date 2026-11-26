@@ -2,6 +2,11 @@
 
 Una entrada por bloque de mejoras. Lo más nuevo arriba.
 
+## En vivo abierto como archivo: va solo a la versión publicada (2026-11-26)
+- Si la pantalla En vivo se abre como archivo (`file://`), ahora **redirige sola** a
+  https://c-couto.github.io/Corredor_Austral/en-vivo/ en vez de quedarse en el cartel de aviso
+  (el cartel queda solo si no hay internet). Para ver el sitio desde el celular, abrir ese link.
+
 ## Botón "Ver ferris en vivo" abierto como archivo (2026-11-25)
 - Si la página principal se abre como archivo (file://) en vez de desde el sitio publicado, el botón
   llevaba a una pantalla que no puede cargar. Ahora, en ese caso, va directo a
