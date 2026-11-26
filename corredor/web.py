@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 from html import escape
 from pathlib import Path
 
-from . import __version__, config, model
+from . import __version__, config, model, resultados
 from .conditions import (RouteStatus, Snapshot, closure_windows, describe_weather, fmt_duration,
                          gust_threshold, is_normal, pct, snapshot, summary_text, verdict)
 from .timeutil import fmt_local, format_ts, to_local
@@ -434,6 +434,88 @@ def _history(snap: Snapshot) -> str:
 </section>"""
 
 
+def _nf(n: float) -> str:
+    return f"{n:.2f}".replace(".", ",")
+
+
+def _como_nos_fue(res: list, now: datetime) -> str:
+    """Lo que predijimos con 3, 12 y 24 h de anticipación contra lo que hizo TABSA. Muestra también
+    los errores (falsas alarmas y suspensiones que no vimos venir)."""
+    con_datos = [r for r in res if r.resumen]
+    if not con_datos:
+        return ""
+    primero = min(d.dia for r in con_datos for d in r.dias)
+    dias = (to_local(now).date() - primero).days + 1
+    blocks = []
+    for r in con_datos:
+        unit = "zarpes" if r.unidad == "zarpes" else "horas"
+        # La comparación con "sigue igual" solo aparece cuando hay al menos 3 suspensiones: antes no
+        # dice nada y repetir "pocos casos" en cada fila era ruido.
+        hay_vs = any(c.mejor_que_igual is not None for c in r.resumen.values())
+        filas = []
+        for a, c in r.resumen.items():
+            if not c.n:
+                continue
+            det = f"{c.detectadas} de {c.sus}" if c.sus else '<span class="muted">no hubo</span>'
+            vs = ""
+            if hay_vs:
+                mejor = c.mejor_que_igual
+                vs = ("<td>—</td>" if mejor is None else
+                      f'<td><b class="{"nf-ok" if mejor else "nf-mal"}">{"mejor" if mejor else "peor"}</b> '
+                      f'<span class="muted small">({_nf(c.brier)} vs {_nf(c.brier_igual)})</span></td>')
+            filas.append(f"<tr><td><b>{a} h</b> antes</td><td>{det}</td><td>{c.falsas} de {c.normales}</td>{vs}</tr>")
+        if hay_vs:
+            base = ("Hoy este cruce usa la regla base: nuestra predicción y la regla base son lo mismo."
+                    if all(c.nuestra_es_la_base for c in r.resumen.values() if c.n)
+                    else "Regla base (error, menor es mejor): " + " · ".join(
+                        f"{a} h {_nf(c.brier_base)}" for a, c in r.resumen.items() if c.brier_base is not None))
+        else:
+            base = ('Todavía no comparamos contra "sigue igual": hacen falta al menos '
+                    f'{resultados.MIN_SUSPENSIONES} suspensiones para que diga algo. '
+                    + ("Hoy este cruce usa la regla base." if all(c.nuestra_es_la_base for c in r.resumen.values() if c.n)
+                       else ""))
+        head_vs = '<th>Contra "sigue igual"</th>' if hay_vs else ""
+        dias_rows = []
+        for d in reversed(r.dias[-7:]):
+            celdas = []
+            for a in resultados.ANTICIPACIONES_H:
+                c = d.celdas.get(a)
+                if not c:
+                    celdas.append('<td class="muted">—</td>')
+                    continue
+                partes = []
+                if c.sus:
+                    partes.append(f'<span class="{"nf-ok" if c.detectadas == c.sus else "nf-mal"}">'
+                                  f'{c.detectadas}/{c.sus} detectadas</span>')
+                if c.falsas:
+                    partes.append(f'<span class="nf-mal">{c.falsas} falsa{"s" if c.falsas != 1 else ""}</span>')
+                celdas.append(f'<td>{" · ".join(partes) if partes else "<span class=nf-ok>✓</span>"}</td>')
+            sus = d.sus
+            dias_rows.append(f"<tr><td><b>{WEEKDAYS[d.dia.weekday()]} {d.dia.day}</b></td>"
+                             f'<td>{(f"{sus} " + (unit[:-1] if sus == 1 else unit)) if sus else "<span class=muted>ninguna</span>"}</td>'
+                             f'{"".join(celdas)}</tr>')
+        blocks.append(f"""
+  <h3>{escape(r.name)}</h3>
+  <table class="nf"><thead><tr><th>Anticipación</th><th>Detectadas</th>
+  <th>Falsas alarmas</th>{head_vs}</tr></thead><tbody>{"".join(filas)}</tbody></table>
+  <p class="muted small">{base}</p>
+  <details><summary>Día por día</summary>
+  <table class="nf"><thead><tr><th>Día</th><th>TABSA suspendió</th><th>3 h</th><th>12 h</th><th>24 h</th></tr></thead>
+  <tbody>{"".join(dias_rows)}</tbody></table></details>""")
+    return f"""
+<section class="card">
+  <h2>Cómo nos fue</h2>
+  <p class="small">Lo que predijimos <b>con anticipación</b>, guardado antes de cada hora, contra lo que
+  después hizo TABSA. Llevamos {dias} día{"s" if dias != 1 else ""} midiendo (desde el {primero.strftime("%d/%m")}):
+  todavía son pocos casos y puede cambiar mucho. Mostramos también los errores.</p>
+  {"".join(blocks)}
+  <p class="muted small"><b>Detectada</b>: dijimos 50 % o más y TABSA suspendió.
+  <b>Falsa alarma</b>: dijimos 50 % o más y TABSA no suspendió. <b>"Sigue igual"</b>: decir que el cruce
+  va a estar como estaba al hacer la predicción; si no le ganamos, el modelo no aporta. Cada hora (o zarpe)
+  cuenta como un caso, así que un temporal largo suma varios.</p>
+</section>"""
+
+
 def _method(snap: Snapshot) -> str:
     rows = []
     for st in snap.routes:
@@ -569,6 +651,8 @@ dd{margin:0;font-size:1.45rem;font-weight:750;font-variant-numeric:tabular-nums;
 .lg-colors{gap:4px!important}.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-left:4px}
 .d-bajo{background:var(--ok)}.d-medio{background:var(--mid)}.d-alto{background:var(--hi)}
 .verdict small{font-weight:500;font-size:.82rem;opacity:.85}
+.nf{font-size:.84rem}.nf th{font-size:.74rem;color:var(--muted)}.nf-ok{color:var(--ok)}.nf-mal{color:var(--hi)}
+details summary{cursor:pointer;margin:8px 0;font-weight:600;font-size:.88rem}
 .ops{list-style:none;padding:0;margin:8px 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
 .ops li{display:flex;gap:10px;align-items:center}.ops div{display:flex;flex-direction:column;line-height:1.25;font-size:.85rem}
 .ops span{color:var(--muted);font-size:.78rem}.ops small{font-size:.78rem;margin-top:2px}
@@ -724,6 +808,7 @@ def render(snap: Snapshot, now: datetime | None = None) -> str:
   {_planner(snap)}
   {_sailings(snap)}
   {_history(snap)}
+  {_como_nos_fue(resultados.calcular(now), now)}
   {_method(snap)}
   {_business(snap)}
   <div class="actions">
