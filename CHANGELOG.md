@@ -2,6 +2,14 @@
 
 Una entrada por bloque de mejoras. Lo más nuevo arriba.
 
+## Río Verde: regla base en 95 km/h (2026-11-27)
+- La regla base de Río Verde pasa de 85 a **95 km/h = 50 %** (amarillo desde 75), `PRIOR_BY_ROUTE`.
+  Motivo: el 26/11 operó normal en horario de servicio con ráfagas de hasta 88 km/h y la regla de 85
+  daba 20 falsas alarmas rojas en 379 lecturas normales (con 95 siguen 7).
+- Sigue siendo un piso y no una medición (solo hubo 1 suspensión, con 55 km/h). Con 95 todavía hay
+  ráfagas de hasta 104 km/h con el cruce normal, así que conviene revisar si Open-Meteo exagera el
+  viento en ese punto (Bloque 3) antes de seguir moviendo el umbral.
+
 ## Web con datos frescos: `python -m corredor web --fresco` (2026-11-27)
 - Hallado el 27/11: una web armada en tu computadora decía "datos de hace 23 h 52 min" aunque el servicio
   andaba bien (52 recolecciones en las últimas 24 h; la web publicada estaba al día). Pasaba porque tu

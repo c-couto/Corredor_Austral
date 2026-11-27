@@ -116,7 +116,7 @@ class TrainingDataTest(TempDataDir):
 
     def test_sin_modelo_guardado_usa_regla_base(self):
         self.assertTrue(model.is_stale())
-        self.assertAlmostEqual(model.load()["rio_verde"].predict(85), 0.5)
+        self.assertAlmostEqual(model.load()["rio_verde"].predict(95), 0.5)
         self.assertAlmostEqual(model.load()["primera_angostura"].predict(94), 0.5)
         self.assertEqual(model.load()["punta_arenas_porvenir"].predict(70), 0.5)
 
@@ -188,8 +188,9 @@ class ReglaBasePorCruceTest(unittest.TestCase):
 
     def test_rio_verde_aguanta_mas_viento(self):
         rv = model.RouteModel(route="rio_verde")
-        self.assertAlmostEqual(rv.predict(85), 0.5)
-        self.assertLess(rv.predict(81), 0.5)    # operó normal con 81 km/h
+        self.assertAlmostEqual(rv.predict(95), 0.5)
+        self.assertLess(rv.predict(88), 0.5)    # operó normal con 88 km/h
+        self.assertLess(rv.predict(81), 0.4)
         self.assertLess(rv.predict(60), 0.2)    # a 60 sigue siendo "normal" (antes ya daba 'medio')
 
     def test_cada_cruce_puede_tener_su_umbral(self):
