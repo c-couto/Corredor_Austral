@@ -2,6 +2,14 @@
 
 Una entrada por bloque de mejoras. Lo más nuevo arriba.
 
+## Web con datos frescos: `python -m corredor web --fresco` (2026-11-27)
+- Hallado el 27/11: una web armada en tu computadora decía "datos de hace 23 h 52 min" aunque el servicio
+  andaba bien (52 recolecciones en las últimas 24 h; la web publicada estaba al día). Pasaba porque tu
+  carpeta `data/` se queda vieja: el recolector sube datos nuevos a GitHub cada 30 min y no se bajan solos.
+- `--fresco` hace `git fetch` y arma la web con los datos más nuevos de GitHub, **sin tocar tu carpeta
+  `data/` ni tu rama**. Sin `--fresco`, si los datos locales tienen más de 2 h, el comando lo avisa y
+  dice cómo arreglarlo. La web publicada (c-couto.github.io/Corredor_Austral/) no cambia.
+
 ## En vivo abierto como archivo: va solo a la versión publicada (2026-11-26)
 - Si la pantalla En vivo se abre como archivo (`file://`), ahora **redirige sola** a
   https://c-couto.github.io/Corredor_Austral/en-vivo/ en vez de quedarse en el cartel de aviso
