@@ -82,6 +82,11 @@ def _hero(snap: Snapshot) -> str:
     local = to_local(snap.now)
     date = f"{WEEKDAYS_LONG[local.weekday()]} {local.day} de {MONTHS[local.month - 1]}"
     pd = snap.current_weather.get("punta_delgada")
+    pa = snap.route("primera_angostura")
+    if pd and pa and pa.gust_kmh is not None:
+        # Viento y ráfagas del encabezado = los de la tarjeta de Primera Angostura (un solo número).
+        pd = {**pd, "wind_kmh": pa.wind_kmh, "gust_kmh": pa.gust_kmh,
+              "wind_dir_deg": pa.wind_dir_deg if pa.wind_dir_deg is not None else pd.get("wind_dir_deg")}
     icon, text = describe_weather(pd)
     main = ""
     if pd:
@@ -133,6 +138,15 @@ def _official(snap: Snapshot, st: RouteStatus) -> str:
         text = f"TABSA · próx. zarpe {nxt.departure}: {status}" if nxt else text
     cls = "nd" if status is None else ("ok" if is_normal(status) else "bad")
     return f'<span class="off off-{cls}"><i></i>{escape(text)}</span>'
+
+
+def _medido(snap: Snapshot) -> str:
+    """Aclara de dónde salen los números de la tarjeta: lo medido, no el pronóstico."""
+    if not snap.latest:
+        return ""
+    return (f'<p class="muted small medido">Medido hace <span data-ago="{format_ts(snap.latest)}">'
+            f'{fmt_duration(snap.now - snap.latest)}</span> (los mismos valores del encabezado). '
+            'El gráfico de abajo mezcla lo medido con el pronóstico.</p>')
 
 
 def _wind(st: RouteStatus) -> str:
@@ -303,6 +317,7 @@ def _route_card(snap: Snapshot, st: RouteStatus) -> str:
   </header>
   <p class="verdict v-{lvl}"><i></i><span>{line}</span></p>
   {_wind(st)}
+  {_medido(snap)}
   {_chart(snap, st)}
   {_windows(snap, st)}
 </article>"""
@@ -593,25 +608,25 @@ CSS = """
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
 body{margin:0;overflow-x:hidden;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 main{max-width:720px;margin:0 auto;padding:0 16px 24px}
-.hero{background:radial-gradient(120% 140% at 100% 0,#14a3b8 0,#0e7490 40%,#0b3d63 100%);color:#fff;padding:18px 16px 60px;position:relative;overflow:hidden}
+.hero{background:radial-gradient(120% 140% at 100% 0,#0e7490 0,#0c5f86 45%,#0b3d63 100%);color:#fff;padding:18px 16px 60px;position:relative;overflow:hidden}
 .hero:after{content:"";position:absolute;inset:auto -10% -30px -10%;height:90px;background:repeating-radial-gradient(ellipse at 50% 0,rgba(255,255,255,.07) 0 6px,transparent 6px 18px);pointer-events:none}
 .hero .in{max-width:720px;margin:0 auto;position:relative;z-index:1}
 .brand{display:flex;align-items:center;gap:12px}
 .flag{width:54px;height:36px;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.25);flex:none}
 h1{font-size:1.4rem;margin:0;letter-spacing:-.01em;line-height:1.15}h2{font-size:1.1rem;margin:0}h3{font-size:.95rem;margin:16px 0 6px}
-.tag{margin:2px 0 0;opacity:.85;font-size:.82rem}
+.tag{margin:2px 0 0;opacity:.95;font-size:.82rem}
 .beta{font-size:.62rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border:1px solid currentColor;border-radius:99px;padding:1px 7px;vertical-align:middle;opacity:.9}
 .now{display:flex;gap:16px;align-items:center;justify-content:space-between;margin-top:16px;flex-wrap:wrap}
 .clock b{display:block;font-size:2.6rem;line-height:1;font-weight:750;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
-.clock b small{font-size:1rem;font-weight:600;opacity:.7;margin-left:3px}
-.clock .date{display:block;font-size:.9rem;margin-top:6px}.clock .date::first-letter{text-transform:uppercase}.clock>small{font-size:.7rem;opacity:.75}
+.clock b small{font-size:1rem;font-weight:600;opacity:.95;margin-left:3px}
+.clock .date{display:block;font-size:.9rem;margin-top:6px}.clock .date::first-letter{text-transform:uppercase}.clock>small{font-size:.7rem;opacity:.95}
 .wx-main{display:flex;gap:10px;align-items:center;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:8px 12px;backdrop-filter:blur(4px)}
 .wx-ico{font-size:2.2rem;line-height:1}.wx-main b{font-size:1.6rem;line-height:1}.wx-main span{display:block;font-size:.85rem;font-weight:600}
-.wx-main small{display:block;font-size:.7rem;opacity:.85;max-width:220px}
+.wx-main small{display:block;font-size:.7rem;opacity:.95;max-width:220px}
 .wx-strip{list-style:none;padding:0;margin:14px 0 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));gap:6px}
 .wx-strip li{background:rgba(255,255,255,.1);border-radius:10px;padding:6px 8px;font-size:.72rem;line-height:1.25}
-.wx-strip span{display:block;opacity:.85}.wx-strip b{display:block;font-size:.95rem}.wx-strip small{opacity:.8}
-.upd{margin:10px 0 0;font-size:.72rem;opacity:.8}
+.wx-strip span{display:block;opacity:.95}.wx-strip b{display:block;font-size:.95rem}.wx-strip small{opacity:.95}
+.upd{margin:10px 0 0;font-size:.72rem;opacity:.95}
 .wrap{margin-top:-44px;position:relative;z-index:2}
 .muted{color:var(--muted)}.small{font-size:.82rem;margin:.3rem 0}
 .alert{background:var(--mid-bg);color:var(--mid);border-radius:12px;padding:10px 12px;font-weight:600;margin:12px 0}
@@ -665,7 +680,7 @@ details summary{cursor:pointer;margin:8px 0;font-weight:600;font-size:.88rem}
 .wins li{border-radius:10px;padding:7px 10px;font-size:.86rem}.wins .w-medio{background:var(--mid-bg);color:var(--mid)}.wins .w-alto{background:var(--hi-bg);color:var(--hi)}
 .seg{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
 .seg button{font:inherit;font-size:.85rem;font-weight:600;padding:8px 12px;border-radius:99px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
-.seg button[aria-pressed=true]{background:var(--brand);border-color:var(--brand);color:#fff}
+.seg button[aria-pressed=true]{background:var(--brand);border-color:var(--brand);color:#04202e}
 .best{font-weight:600;margin:6px 0 10px}
 .plan{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px}
 .plan li{border-radius:10px;padding:6px 4px;text-align:center;font-size:.78rem;line-height:1.2;font-variant-numeric:tabular-nums}
@@ -701,7 +716,7 @@ cd.textContent=D[t.getUTCDay()]+' '+t.getUTCDate()+' de '+M[t.getUTCMonth()];
 document.querySelectorAll('[data-ago]').forEach(function(e){var m=Math.max(0,Math.round((Date.now()-Date.parse(e.dataset.ago))/6e4));
 e.textContent=m<60?m+' min':Math.floor(m/60)+' h '+p2(m%%60)+' min'});setTimeout(tick,1000-Date.now()%%1000)}
 if(c)tick();
-var at=document.getElementById('atrasado');if(at&&(Date.now()-Date.parse(at.dataset.ts))/6e4>+at.dataset.maxMin)at.hidden=false;
+var cartel=document.getElementById('atrasado');if(cartel&&(Date.now()-Date.parse(cartel.dataset.ts))/6e4>+cartel.dataset.maxMin)cartel.hidden=false;
 var el=document.getElementById('plan-data');if(!el)return;var d=JSON.parse(el.textContent);
 var H=3600e3,btns=document.querySelectorAll('#planificador .seg button'),grid=document.getElementById('plan-grid'),best=document.getElementById('plan-best');
 function lvl(p){for(var i=0;i<d.levels.length;i++)if(p>=d.levels[i][0])return d.levels[i][1];return'bajo'}

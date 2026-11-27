@@ -324,11 +324,19 @@ def snapshot(now: datetime | None = None, fetch_forecast: bool = True) -> Snapsh
     places: dict[str, dict] = {}
     for _, by_place in weather_runs:
         places.update(by_place)
+    # UN solo número por dato: el encabezado y las tarjetas leen la MISMA medición guardada
+    # (la última corrida). El clima "en vivo" de la API solo completa lo que falta (ícono, temperatura)
+    # y lugares sin dato guardado; nunca pisa el viento ni las ráfagas guardados.
+    claves = ("temp_c", "wind_kmh", "gust_kmh", "wind_dir_deg", "precip_mm")
     current_weather = {p: {k: num(v) if k != "symbol" else v for k, v in row.items()}
                        for p, row in ((fc or {}).get("current") or {}).items()}
-    for p, row in places.items():  # sin caché: lo último guardado en el CSV
-        current_weather.setdefault(p, {k: num(row.get(k)) for k in
-                                       ("temp_c", "wind_kmh", "gust_kmh", "wind_dir_deg", "precip_mm")})
+    for p, row in places.items():
+        guardado = {k: num(row.get(k)) for k in claves}
+        actual = current_weather.setdefault(p, {})
+        for k in ("wind_kmh", "gust_kmh", "wind_dir_deg"):
+            actual[k] = guardado[k]
+        for k in ("temp_c", "precip_mm"):
+            actual.setdefault(k, guardado[k])
 
     episodes = _episodes(state_rows, names)
     return Snapshot(
