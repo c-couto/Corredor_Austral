@@ -33,7 +33,9 @@ export function crearFuenteHorario(ruta, zarpes, { velocidad = 1, inicio = null,
     const proximo = zarpes.find((z) => z.sale > t);
     if (!proximo) return mov.enRampa(barco, lado);
     if (!normal(proximo)) return mov.enRampa(barco, lado, { suspendido: true, estado_zarpe: proximo.estado });
-    return mov.enRampa(barco, lado, { sale: proximo.sale });
+    // El ferry tiene que estar en la rampa desde donde sale el próximo zarpe. Si hubo zarpes cancelados
+    // en el medio, la cuenta de orillas puede no coincidir: manda el origen del zarpe que viene.
+    return mov.enRampa(barco, proximo.desde, { sale: proximo.sale });
   }
 
   return {

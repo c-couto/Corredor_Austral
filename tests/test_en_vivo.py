@@ -7,6 +7,8 @@ obligatorios, no hay claves y no se usan imágenes satelitales.
 
 import json
 import re
+import shutil
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -122,6 +124,16 @@ class PrimeraAngosturaSimuladaTest(unittest.TestCase):
 
     def test_los_tiempos_de_la_simulacion_dicen_estimado(self):
         self.assertIn("(estimado)", (CARPETA / "app.js").read_text(encoding="utf-8"))
+
+
+class FerryEnReposoTest(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("node"), "hace falta Node.js para probar el JavaScript")
+    def test_espera_en_la_rampa_desde_donde_sale_el_proximo_zarpe(self):
+        # Hallado el 26/11 con viento: todos los zarpes de hoy cancelados y el ferry figuraba en Punta Arenas
+        # esperando un zarpe de mañana que sale de Porvenir.
+        r = subprocess.run(["node", str(Path(__file__).parent / "js_ferry_en_reposo.mjs"), str(CARPETA)],
+                           capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
 
 class ReglasTest(unittest.TestCase):
