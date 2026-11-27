@@ -303,6 +303,11 @@ def main(argv: list[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(errors="replace")
     print(texto(res))
+    try:  # modelo en sombra: solo informa (no se muestra en la web ni cambia nada)
+        from . import sombra
+        print("\n" + sombra.texto())
+    except Exception as e:  # que un problema de la sombra nunca estropee el informe de siempre
+        print(f"\n(modelo en sombra no disponible: {e})")
     if args.csv:
         cols = ["ruta", "t", "estado", "y"] + [f"{c}{a}" for a in ANTICIPACIONES_H for c in ("p", "rafaga")]
         path = Path(args.csv)
