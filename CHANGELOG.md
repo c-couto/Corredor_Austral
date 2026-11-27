@@ -2,6 +2,26 @@
 
 Una entrada por bloque de mejoras. Lo más nuevo arriba.
 
+## Bloque 3 — Modelo en sombra (2026-11-27)
+- Módulo nuevo `corredor/sombra.py`: prueba **datos candidatos** sin arriesgar nada. Suma a los de siempre
+  el viento **transversal y longitudinal al cruce** (ráfaga × |sen| y × |cos| del ángulo con el eje de los
+  ferris en OpenStreetMap) y, solo en Primera Angostura, la **marea** (nivel, cuánto sube o baja por hora y
+  su valor absoluto, a partir del nivel del mar que ya se guarda en `pronosticos/`).
+- Se evalúa dentro de `python -m corredor.evaluacion` (y solo: `python -m corredor.sombra`). Compara, en el
+  20 % más reciente: regla base · el mismo modelo sin los datos nuevos · el modelo sombra, y dice si
+  mejora. Usa las mismas protecciones que el modelo real (8 suspensiones distintas, prueba con al menos 2
+  temporales). Hoy dice "todavía no se puede evaluar" en los tres cruces.
+- **No se muestra en la web, no avisa, no cambia ninguna predicción y no escribe nada en `data/`**
+  (una prueba lo verifica). No toca la recolección ni el reentrenamiento diario.
+- Pista, no conclusión: con 2 temporales, en Primera Angostura la marea no se ve distinta entre
+  suspendido y normal (la corriente a media marea no resulta mayor); lo que separa es el viento, casi todo
+  de costado al cruce (eje 158°). Se vuelve a mirar al tener 8 temporales.
+- Script nuevo `scripts/comparar_puntos_open_meteo.py` (solo lee): compara celdas y números de Open-Meteo.
+  Hallazgo para el punto nuevo de Bahía Azul: `punta_delgada` y `bahia_azul` de `config.py` caen en la
+  **misma celda** (-52,478 / -69,424); las rampas reales de los ferris caen en otras, con ráfagas distintas
+  (hasta 98 km/h en la rampa de Bahía Azul contra 92 en la celda actual). **No se agregó ningún lugar a
+  `config.py`**: queda propuesto, a la espera de OK.
+
 ## CLAUDE.md renovado (2026-11-27)
 - Se instala el `CLAUDE.md` nuevo del equipo (forma de trabajo de un cambio por rama, cómo funciona el
   modelo hoy, lecciones del 24 al 26/11, hoja de ruta con el vencimiento del token de cron-job.org).
