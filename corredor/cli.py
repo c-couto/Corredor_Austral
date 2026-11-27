@@ -134,10 +134,57 @@ def cmd_export(args: argparse.Namespace) -> None:
     print(f"Exportado a {out}")
 
 
+def datos_de_github(ref: str = "origin/main", repo: Path | None = None) -> Path:
+    """Baja lo último de GitHub (`git fetch`) y deja una copia de data/ en una carpeta temporal.
+
+    No toca tu carpeta data/ ni tu rama: el recolector sube datos nuevos cada 30 min y tu copia local
+    se va quedando vieja (una web armada con ella dice "datos de hace 23 h" aunque el servicio ande bien).
+    Devuelve la carpeta temporal que contiene data/.
+    """
+    import subprocess
+    import tarfile
+    import tempfile
+    repo = repo or config.ROOT
+    if "/" in ref:
+        remote, branch = ref.split("/", 1)
+        subprocess.run(["git", "fetch", "--quiet", remote, branch], cwd=repo, check=True, timeout=180)
+    tmp = Path(tempfile.mkdtemp(prefix="corredor-datos-"))
+    proc = subprocess.Popen(["git", "archive", ref, "data"], cwd=repo, stdout=subprocess.PIPE)
+    with tarfile.open(fileobj=proc.stdout, mode="r|") as tar:
+        if hasattr(tarfile, "data_filter"):
+            tar.extractall(tmp, filter="data")
+        else:  # Python viejo: el contenido viene de nuestro propio repositorio
+            tar.extractall(tmp)
+    if proc.wait() != 0:
+        raise RuntimeError(f"git archive {ref} falló")
+    return tmp
+
+
+def _aviso_si_datos_viejos() -> None:
+    rows = storage.read_rows(storage.TABSA_STATE)
+    if not rows:
+        return
+    from datetime import datetime, timezone
+    from .timeutil import parse_ts
+    edad = datetime.now(timezone.utc) - parse_ts(rows[-1]["ts_utc"])
+    if edad.total_seconds() > config.STALE_AFTER_H * 3600:
+        horas = edad.total_seconds() / 3600
+        print(f"\nAVISO: los datos de esta web son de hace {horas:.0f} h (tu carpeta data/ está desactualizada;\n"
+              f"  el servicio no está caído). Para verla con lo último de GitHub:  python -m corredor web --fresco")
+
+
 def cmd_web(args: argparse.Namespace) -> None:
     from .web import build_site
+    if args.fresco:
+        try:
+            carpeta = datos_de_github()
+            config.DATA_DIR = carpeta / "data"
+            print(f"Usando los datos más nuevos de GitHub (copia temporal en {carpeta}).")
+        except Exception as e:  # sin internet / sin git: se avisa y se usa lo local
+            print(f"AVISO: no pude bajar los datos de GitHub ({e}); uso los de tu carpeta.")
     path = build_site(Path(args.out))
     print(f"Web generada: {path.resolve()}")
+    _aviso_si_datos_viejos()
 
 
 def cmd_resumen(args: argparse.Namespace) -> None:
@@ -196,6 +243,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("web", help="BETA: generar la web estática")
     s.add_argument("--out", default=str(config.ROOT / "_site"), help="carpeta de salida (por defecto _site/)")
+    s.add_argument("--fresco", action="store_true",
+                   help="usar los datos más nuevos de GitHub (git fetch; no cambia tu carpeta data/)")
     s.set_defaults(fn=cmd_web)
 
     sub.add_parser("resumen", help="BETA: ver el resumen para Telegram / WhatsApp").set_defaults(fn=cmd_resumen)
