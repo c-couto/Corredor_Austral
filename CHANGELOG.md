@@ -3,6 +3,17 @@
 Una entrada por bloque de mejoras. Lo más nuevo arriba.
 
 
+## Bloque 5 · Web más firme (contraste y un solo número por dato)
+- **Arreglo urgente de un error del Bloque 4**: el cartel "Datos atrasados" usaba una variable con el mismo
+  nombre que una función del planificador y lo rompía ("¿A qué hora salgo?" no respondía). Corregido.
+- **Un solo número por dato**: el encabezado (viento y ráfagas de Primera Angostura) ahora usa la MISMA
+  medición guardada que la tarjeta (antes el encabezado leía el clima "en vivo" de la API y daba 34/54 contra
+  32/51). Las tarjetas aclaran "Medido hace X min" y que el gráfico mezcla lo medido con el pronóstico.
+- **Contraste AA (4,5:1)**, mismo diseño: se midió con Chrome cada texto de la página. Se corrigieron el texto
+  blanco sobre el botón activo celeste del planificador (1,9:1 → oscuro), el degradado del encabezado (más
+  oscuro en la esquina clara) y los textos del encabezado con transparencia (reloj, "Datos de hace…", lugares).
+- Pruebas nuevas (178 en total).
+
 ## Bloque 4 · Salud del sistema
 - **`python -m corredor salud`**: última lectura de TABSA, edad del clima, errores de las últimas 24 h,
   corridas que faltaron y días que quedan del token de cron-job.org (vence el 17/12/2026). Solo lee.

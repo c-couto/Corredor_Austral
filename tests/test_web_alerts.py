@@ -183,6 +183,26 @@ class WebTest(TempDataDir):
         self.assertNotIn(" hidden>", html.split('id="atrasado"')[1][:200])
         self.assertNotIn("¿A qué hora salgo?", html)  # sin pronóstico no se muestra
 
+    def test_un_solo_numero_encabezado_y_tarjeta(self):
+        # El clima "en vivo" de la API dice otra cosa que lo guardado: no debe pisar el viento del encabezado.
+        add_run(NOW - timedelta(minutes=5), {"punta_delgada": 54, "bahia_azul": 60, "punta_arenas": 20}, "NORMAL")
+        snap = conditions.snapshot(now=NOW, fetch_forecast=False)
+        snap.current_weather["punta_delgada"] = {"temp_c": 9, "wind_kmh": 34, "gust_kmh": 99}
+        html = web.render(snap, now=NOW)
+        hero = html.split("</header>")[0]
+        self.assertIn("ráfagas 60", hero)       # el máximo de la tarjeta (60), no 54 ni 99
+        self.assertNotIn("ráfagas 99", hero)
+        self.assertIn("Medido hace", html)
+
+    def test_contraste_del_encabezado_y_botones_activos(self):
+        css = web.CSS
+        for viejo in ("opacity:.7}", "opacity:.75}", "opacity:.8}", "opacity:.85}"):
+            for regla in (".tag{", ".upd{", ".clock>small{", ".wx-strip small{", ".wx-strip span{", ".wx-main small{"):
+                fila = next(l for l in css.splitlines() if regla in l)
+                self.assertNotIn(regla + "margin:2px 0 0;" + viejo, fila)
+        self.assertNotIn("opacity:.7;margin-left", css)                 # los segundos del reloj
+        self.assertIn("[aria-pressed=true]{background:var(--brand);border-color:var(--brand);color:#04202e}", css)
+
     def test_pagina_sin_datos(self):
         self.assertIn("Sin datos todavía", self.page())
 
