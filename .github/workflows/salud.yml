@@ -1,0 +1,30 @@
+# Revisa la salud del sistema y avisa AL EQUIPO por Telegram (chat aparte del de los usuarios).
+#
+# - Cada hora (el schedule de GitHub se atrasa seguido; no importa: la revisión compara contra
+#   "una hora antes" con los datos que ya hay, y solo avisa lo que se puso mal desde entonces).
+# - Solo lee: no hace commits ni toca collect.yml.
+# - Secrets: TELEGRAM_BOT_TOKEN (el mismo bot) y TELEGRAM_TEAM_CHAT_ID (chat del equipo).
+#   Sin TELEGRAM_TEAM_CHAT_ID no envía nada y no falla.
+name: salud
+
+on:
+  schedule:
+    - cron: "50 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  revisar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Revisar y avisar
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_TEAM_CHAT_ID: ${{ secrets.TELEGRAM_TEAM_CHAT_ID }}
+        run: python3 -m corredor salud --avisar

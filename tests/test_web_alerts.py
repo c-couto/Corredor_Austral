@@ -174,12 +174,13 @@ class WebTest(TempDataDir):
                      'class="chart"', "Construyendo el historial", "Bandera de Tierra del Fuego",
                      'id="clk"', "probabilidad de que TABSA suspenda", "Probable suspensión"):
             self.assertIn(text, html)
-        self.assertNotIn("Los datos tienen más de", html)
+        self.assertIn(" hidden>", html.split('id="atrasado"')[1][:200])  # el cartel existe pero oculto
 
     def test_aviso_de_datos_viejos_y_sin_planificador(self):
         add_run(NOW - timedelta(hours=5), {"punta_delgada": 30})
         html = self.page()
-        self.assertIn("Los datos tienen más de", html)
+        self.assertIn("Datos atrasados", html)
+        self.assertNotIn(" hidden>", html.split('id="atrasado"')[1][:200])
         self.assertNotIn("¿A qué hora salgo?", html)  # sin pronóstico no se muestra
 
     def test_pagina_sin_datos(self):

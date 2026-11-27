@@ -701,6 +701,7 @@ cd.textContent=D[t.getUTCDay()]+' '+t.getUTCDate()+' de '+M[t.getUTCMonth()];
 document.querySelectorAll('[data-ago]').forEach(function(e){var m=Math.max(0,Math.round((Date.now()-Date.parse(e.dataset.ago))/6e4));
 e.textContent=m<60?m+' min':Math.floor(m/60)+' h '+p2(m%%60)+' min'});setTimeout(tick,1000-Date.now()%%1000)}
 if(c)tick();
+var at=document.getElementById('atrasado');if(at&&(Date.now()-Date.parse(at.dataset.ts))/6e4>+at.dataset.maxMin)at.hidden=false;
 var el=document.getElementById('plan-data');if(!el)return;var d=JSON.parse(el.textContent);
 var H=3600e3,btns=document.querySelectorAll('#planificador .seg button'),grid=document.getElementById('plan-grid'),best=document.getElementById('plan-best');
 function lvl(p){for(var i=0;i<d.levels.length;i++)if(p>=d.levels[i][0])return d.levels[i][1];return'bajo'}
@@ -766,10 +767,27 @@ animation:ev-cruce 12s ease-in-out infinite}
 """
 
 
+def _datos_atrasados(snap: Snapshot, now: datetime) -> str:
+    """Cartel "Datos atrasados": si el dato más viejo (clima o TABSA) pasa de 90 min.
+
+    Se decide al generar la página y otra vez en el navegador (la página puede quedar abierta
+    horas o la recolección puede haberse cortado): por eso va siempre, oculta, con la hora del dato.
+    """
+    fechas = [t for t in (snap.latest, snap.tabsa_latest) if t]
+    if not fechas:
+        return ""
+    mas_viejo = min(fechas)
+    minutos = (now - mas_viejo).total_seconds() / 60
+    visible = "" if minutos > config.CLIMA_ATRASADO_MIN else " hidden"
+    return (f'<div class="alert" id="atrasado" role="status" data-ts="{format_ts(mas_viejo)}" '
+            f'data-max-min="{config.CLIMA_ATRASADO_MIN}"{visible}>⚠️ <b>Datos atrasados.</b> El último dato es de hace '
+            f'<span data-ago="{format_ts(mas_viejo)}">{fmt_duration(now - mas_viejo)}</span>. '
+            'Puede no reflejar la situación actual: confirmá con TABSA.</div>')
+
+
 def render(snap: Snapshot, now: datetime | None = None) -> str:
     now = now or snap.now
-    stale = (f'<div class="alert">⚠️ Los datos tienen más de {config.STALE_AFTER_H} h. '
-             'Pueden no reflejar la situación actual.</div>') if snap.is_stale(now) else ""
+    stale = _datos_atrasados(snap, now)
     wa = "https://wa.me/?text=" + urllib.parse.quote(summary_text(snap))
     tg = (f'<a class="btn" href="{escape(config.TELEGRAM_URL)}" rel="noopener">Avisos por Telegram</a>'
           if config.TELEGRAM_URL else "")
