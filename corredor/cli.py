@@ -15,6 +15,7 @@ TABSA, modelo, web y avisos:
   python -m corredor resumen                  # el mensaje que va a Telegram / WhatsApp
   python -m corredor notify                   # avisa por Telegram si cambió algo
   python -m corredor notify --force           # manda el resumen igual (para probar)
+  python -m corredor salud                    # salud del sistema (TABSA, clima, errores, token)
 """
 
 from __future__ import annotations
@@ -197,6 +198,13 @@ def cmd_notify(args: argparse.Namespace) -> None:
     print(notify(force=args.force))
 
 
+def cmd_salud(args: argparse.Namespace) -> None:
+    from . import salud
+    print(salud.texto(salud.calcular()))
+    if args.avisar:
+        print("\n" + salud.avisar())
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="python -m corredor", description="Corredor Austral - recolector de datos")
     p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -252,6 +260,11 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("notify", help="BETA: avisar por Telegram si cambió el riesgo")
     s.add_argument("--force", action="store_true", help="enviar el resumen aunque no haya cambios")
     s.set_defaults(fn=cmd_notify)
+
+    s = sub.add_parser("salud", help="¿está recolectando bien? (solo lee; no cambia nada)")
+    s.add_argument("--avisar", action="store_true",
+                   help="avisar al equipo por Telegram (TELEGRAM_TEAM_CHAT_ID) lo que se puso mal desde la revisión anterior")
+    s.set_defaults(fn=cmd_salud)
     return p
 
 

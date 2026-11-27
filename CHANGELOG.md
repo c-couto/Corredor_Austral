@@ -2,6 +2,18 @@
 
 Una entrada por bloque de mejoras. Lo más nuevo arriba.
 
+
+## Bloque 4 · Salud del sistema
+- **`python -m corredor salud`**: última lectura de TABSA, edad del clima, errores de las últimas 24 h,
+  corridas que faltaron y días que quedan del token de cron-job.org (vence el 17/12/2026). Solo lee.
+- **Aviso al equipo** (`python -m corredor salud --avisar`, workflow nuevo `salud.yml`, cada hora): por
+  Telegram a un chat aparte (Secret `TELEGRAM_TEAM_CHAT_ID`; sin él no envía y no falla) si hay 3 corridas
+  seguidas sin TABSA, el clima tiene más de 90 min, o faltan 7 días o menos para el token (recuerda 1 vez
+  por día). No repite el mismo aviso cada hora. No toca `collect.yml` ni cambia ningún dato.
+- **Web**: cartel "Datos atrasados" si el dato más viejo (clima o TABSA) pasa de 90 min; también se
+  activa en el navegador si la página queda abierta. Reemplaza al cartel anterior (2 h, solo clima).
+- Pruebas nuevas: `tests/test_salud.py` (176 en total).
+
 ## Bloque 3 — Modelo en sombra (2026-11-27)
 - Módulo nuevo `corredor/sombra.py`: prueba **datos candidatos** sin arriesgar nada. Suma a los de siempre
   el viento **transversal y longitudinal al cruce** (ráfaga × |sen| y × |cos| del ángulo con el eje de los

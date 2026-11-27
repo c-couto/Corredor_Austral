@@ -7,6 +7,7 @@ Todo lo que se quiera ajustar sin tocar la lógica está acá. Lo que es privado
 from __future__ import annotations
 
 import os
+from datetime import date
 from pathlib import Path
 
 from . import __version__
@@ -150,6 +151,13 @@ MODEL_MIN_POSITIVES = 8
 
 # Si el último dato tiene más de estas horas, se avisa que está desactualizado.
 STALE_AFTER_H = 2
+
+# Salud del sistema (corredor/salud.py y cartel "Datos atrasados" de la web).
+CLIMA_ATRASADO_MIN = 90        # clima más viejo que esto = problema / cartel en la web
+TABSA_SIN_LECTURA_MIN = 100    # ~3 corridas seguidas (cada 30 min) sin leer TABSA
+CORRIDAS_SIN_TABSA_AVISO = 3
+TOKEN_AVISO_DIAS = 7           # avisar al equipo desde 7 días antes
+TOKEN_CRON_VENCE = date(2026, 12, 17)   # vence el token que usa cron-job.org: RENOVARLO antes
 
 # Links opcionales (variables del workflow; vacíos = no se muestran).
 #   CORREDOR_SITE_URL      dirección pública de la web (va en los mensajes)
