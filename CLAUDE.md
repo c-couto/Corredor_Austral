@@ -20,6 +20,10 @@ Sabemos algo de programación: entendemos el código si lo vemos, pero no escrib
   servicios pagos o que pidan tarjeta), preguntá primero.
 - Nunca pongas tokens ni claves en el código: usá GitHub Secrets / variables de entorno.
 - Si una tarea es "solo diagnóstico", no cambies nada: leé, calculá y reportá.
+- Forma de trabajo: **un cambio por rama**, chico, con pruebas nuevas, todas las pruebas
+  pasando, una entrada en `CHANGELOG.md` y el OK del equipo antes del merge.
+- También revisamos el repo desde Claude en claude.ai (solo lectura): ahí se analiza y se
+  preparan los pedidos; los cambios se hacen acá, en una rama.
 
 ## ⚠️ Negocio: antes de cobrar
 - **Open-Meteo es solo para uso NO comercial.** Antes de cobrar (Premium o Plan Flota) hay
@@ -31,14 +35,15 @@ Sabemos algo de programación: entendemos el código si lo vemos, pero no escrib
   lo prohíben. Con los servicios gratuitos no hay cobertura AIS en la zona; las opciones son
   satélite (pago) o una antena propia (plan B).
 
-## Cómo funciona hoy (v0.4.0, 24/11/2026)
+## Cómo funciona hoy (v0.4.0, actualizado 27/11/2026)
 - **Recolección** (`.github/workflows/collect.yml`, un trabajo de ~1 min, límite 6 min):
   estado de TABSA, clima de 8 puntos + pronóstico horario, oleaje, reentrenamiento diario del
   modelo (00:01 UTC), commit de `data/auto/` y `data/model/`, y aviso por Telegram.
   - La dispara **cron-job.org a los :05 y :35** (vía `workflow_dispatch`). El `schedule` de
     GitHub (`20,50 * * * *`) es solo respaldo: GitHub lo saltea o lo atrasa seguido; está a
     mitad de camino para no duplicar la lectura de cron-job.org.
-  - El token que usa cron-job.org vence el **17/12/2026**.
+  - El token que usa cron-job.org vence el **17/12/2026**. **Renovarlo antes**: si vence, se
+    corta la recolección y se pierde historial que no se puede recuperar.
   - **No renombrar `collect.yml`**: cron-job.org lo dispara por ese nombre.
 - **Repo PÚBLICO**: los minutos de Actions no gastan cupo. **Si vuelve a privado, apagar
   `ais.yml` y revisar el consumo** (el cupo gratis es de 2.000 min/mes).
@@ -54,25 +59,43 @@ Sabemos algo de programación: entendemos el código si lo vemos, pero no escrib
   (`WEATHER_RETRY_WAITS_S`); lo demás usa `RETRY_WAITS_S` (5, 10 y 20 s). **TABSA se lee
   primero**, así que si el clima falla o tarda, la corrida sigue y TABSA ya quedó guardado.
 - **Modelo** (`corredor/model.py`): regresión logística en Python puro (ráfaga, viento,
-  dirección), con el estado de TABSA como etiqueta. Usa la **regla base** (equivale a un umbral
-  de 70 km/h de ráfaga) hasta tener `MODEL_MIN_SAMPLES`=60 muestras y `MODEL_MIN_POSITIVES`=8
-  suspensiones; el aprendido solo la reemplaza si tiene mejor Brier en el 20 % más reciente.
-  Al 24/11 los 3 cruces usan la regla base.
+  dirección), con el estado de TABSA como etiqueta.
+  - Las suspensiones se cuentan por **evento**: un temporal = 1 (aunque dure 7 lecturas) y cada
+    zarpe cancelado = 1 (`model.events_for`).
+  - Usa la **regla base** hasta tener `MODEL_MIN_POSITIVES`=8 suspensiones distintas y
+    `MODEL_MIN_SAMPLES`=60 muestras. El aprendido solo la reemplaza si le gana (Brier) en el
+    **20 % más reciente**, que no usó para aprender, y esa prueba tiene que incluir **al menos 2
+    temporales distintos**. **Nunca** se aprueba con los mismos datos con los que aprendió.
+  - **Regla base por cruce** (`PRIOR_BY_ROUTE` en `config.py`; ráfaga en km/h = 50 %):
+    - Primera Angostura: **94** (rojo) / amarillo desde **79**. **PROVISIONAL**: sale de solo 2
+      temporales (24/11). Se revisa al tener 8.
+    - Punta Arenas–Porvenir: **70**.
+    - Río Verde: **95** (amarillo desde 75; antes 85). Es un piso (operó normal con 88 km/h en
+      horario de servicio el 26/11), no una medición.
+  - Al 27/11 los 3 cruces usan la regla base (temporales/zarpes: PA 2, Porvenir 6, Río Verde 1).
+  - Se reentrena todos los días a las 00:01 UTC (21:01 hora local).
 - **Evaluación** (`python -m corredor.evaluacion`): compara lo que predijimos con lo que hizo
-  TABSA, en el momento y con 3/12/24 h de anticipación, con el modelo vigente en cada momento.
-  Solo lee datos.
+  TABSA, en el momento y con 3/12/24 h de anticipación. Solo lee datos. **Pendiente**: hoy
+  reconstruye la anticipación desde `pronosticos/`, así que solo la mide en Primera Angostura;
+  tiene que usar `predicciones/`, que guarda los 3 cruces desde el 24/11.
+- **Web — "Cómo nos fue"** (Bloque 2): predicciones con 3/12/24 h contra lo que hizo TABSA, por
+  cruce y por día, con errores incluidos.
 - **Web** publicada en **GitHub Pages**: https://c-couto.github.io/Corredor_Austral/
   (`.github/workflows/pages.yml`: se regenera al terminar cada `collect`; no hace commits).
   Lleva el cartel "Prototipo – versión preliminar". `netlify.toml` + `web/` son una demo vieja
   para Netlify, **no conectada**.
+  - `python -m corredor web` arma la web con los datos de tu carpeta `data/`, que se queda vieja
+    (el recolector sube datos a GitHub y no se bajan solos). Para verla con lo último:
+    `python -m corredor web --fresco` (no toca tu `data/` ni tu rama).
 - **Pantalla "En vivo"** (`paginas/en-vivo/`, en el sitio: `en-vivo/`), marcada **demo**. Es la
   futura función **PREMIUM**.
-  - Primera Angostura: ferris **simulados** con un horario aproximado (OSM: cruce de 20 min,
-    servicio 08:00–24:00).
-  - Punta Arenas–Porvenir: sigue los **zarpes reales publicados por TABSA**; la posición en el
-    cruce es estimada.
-  - Regla: **nunca mostrar ferris cruzando si TABSA dice suspendido o cancelado** (la pantalla ya
-    lo respeta; el minimapa de la página principal todavía no).
+  - Primera Angostura: solo **ferris reales de TABSA**, cada uno con su color (Pionero naranja,
+    Kawéskar turquesa). La posición y los tiempos son **estimados** y así se marcan (no hay AIS).
+  - Punta Arenas–Porvenir y Río Verde: siguen los **horarios y zarpes publicados por TABSA**; la
+    posición en el cruce es estimada.
+  - Si se abre como archivo (`file://`), redirige a la versión publicada.
+  - Regla: **nunca mostrar ferris cruzando si TABSA dice suspendido o cancelado** (la pantalla lo
+    respeta; **verificar** el minimapa de la página principal).
 - **AIS** (`ais/`, `.github/workflows/ais.yml`): escuchaba aisstream.io 10 min a los :15 y :45
   y guardaba en la **rama `datos-ais`, nunca en `main`**. Al 24/11: 127 sesiones (~21 h de
   escucha en 64 h distintas) y **0 posiciones** → aisstream no cubre la zona.
@@ -87,6 +110,8 @@ CSV, uno por tabla; diccionario completo en la sección "Datos" del `README.md`.
 - Hora siempre en **UTC**; a hora local (UTC-3 todo el año en Magallanes y Tierra del Fuego)
   solo al mostrar.
 - Registrar los **cambios de estado** con su hora (`tabsa_cambios.csv`), además de cada muestra.
+  Un zarpe de Porvenir puede pasar NORMAL → SUSPENDIDO → CANCELADO (pasó el 26/11): cuenta
+  como **una** suspensión.
 - `data/auto/` lo escribe solo el bot; `data/manual/` solo los comandos `status`/`event`/`crossing`.
 - `data/auto/pronosticos/AAAA-MM.csv`: pronóstico de 48 h tal como estaba en cada corrida
   (solo Punta Delgada y Bahía Azul). `data/model/modelo.json`: el modelo (se reescribe a diario).
@@ -96,27 +121,48 @@ CSV, uno por tabla; diccionario completo en la sección "Datos" del `README.md`.
 ## Estructura del código
 - `corredor/` (solo biblioteca estándar, Python ≥ 3.10): `python -m corredor <comando>`.
   `config.py` (lugares, cruces, umbrales), `collect.py`, `sources/`, `net.py`, `storage.py`,
-  `timeutil.py`, `forecast.py`, `model.py`, `evaluacion.py`, `conditions.py` (**única fuente**
-  para web, Telegram y WhatsApp), `web.py`, `alerts.py` + `channels/telegram.py`.
+  `timeutil.py`, `forecast.py`, `model.py`, `evaluacion.py`, `resultados.py` ("Cómo nos fue"),
+  `conditions.py` (**única fuente** para web, Telegram y WhatsApp), `web.py`, `alerts.py` +
+  `channels/telegram.py`.
 - `ais/`: sondeo y reporte de cobertura AIS. `paginas/en-vivo/`: pantalla En vivo (JS, sin build).
-- `tests/`: `python -m unittest -v`. **Todas tienen que pasar.** No salen a internet ni abren el
-  navegador ni tocan los datos reales.
+- `tests/`: `python -m unittest -v` (153 al 27/11). **Todas tienen que pasar.** No salen a
+  internet ni abren el navegador ni tocan los datos reales.
+- `CHANGELOG.md`: una entrada por cambio, lo más nuevo arriba.
 - `docs/MODELO_NEGOCIO.md`: Plan Flota, patrocinios, validación y riesgos.
 
-## Lecciones del 24/11/2026 (primer temporal registrado)
+## Lecciones (24 al 26/11/2026)
+
+**Temporales registrados hasta el 27/11:**
+- Río Verde: lunes 23/11, 11:01 → 12:01 (ráfaga de 55 km/h: no fue por viento fuerte).
+- Primera Angostura: martes 24/11, 12:31 → 16:01 (91 km/h) y 19:05 → 21:05 (83 km/h).
+- Porvenir, martes 24/11: cancelados los zarpes de 09:00, 15:00 y 18:00.
+- Porvenir, jueves 26/11: cancelados los zarpes de 09:00 (antes pasó por SUSPENDIDO), 15:00 y
+  18:00. El sistema daba 64 % en el momento.
+- Jueves 26/11: Primera Angostura y Río Verde **no** se suspendieron, aunque el pronóstico daba
+  ráfagas de 90–100 km/h en Río Verde.
+
+**Del 26/11 y de la evaluación del 27/11:**
+- **Río Verde**, aun con la regla en 85, dio 20 falsas alarmas rojas y predice peor que "decir
+  siempre el promedio" (Brier 0,051 contra 0,005). Puede que Open-Meteo exagere el viento ahí o
+  que el punto elegido no sea representativo: revisarlo antes de bajar o subir el umbral.
+  (El 27/11 se subió a 95; siguen 7 falsas alarmas rojas, con ráfagas de hasta 104 km/h y el
+  cruce normal: eso apunta más a revisar el punto de Open-Meteo que al umbral.)
+- **Primera Angostura con 94/79**: 0 falsas alarmas rojas, pero ninguna de las 11 lecturas
+  suspendidas llegó a rojo (≥50 %). Solo se detectan en amarillo (9 de 11 lecturas ≥20 %). Es el
+  costo de haberla ajustado con 2 temporales: **no ajustar más a mano**; esperar a 8 y que decida
+  la evaluación.
+
+**Del 24/11 (primer temporal):**
 - Primera Angostura se suspendió de **12:31 a 16:01** (hora local) y cerró y reabrió con casi
   el mismo viento (ráfagas de ~90 km/h). Coincidió con la **bajante fuerte de la marea**: es una
   pista para probar la marea como dato del modelo, **no una conclusión**.
-- **Río Verde aguanta más viento** que la regla base (normal con ráfagas de 75–81 km/h): la regla
-  base no debería ser la misma para los 3 cruces.
+- **Río Verde aguanta más viento** que la regla de 70 (normal con ráfagas de 75–81 km/h) →
+  regla base por cruce (hecho).
 - **Bahía Azul y Punta Delgada caen en la misma celda de Open-Meteo**: Bahía Azul no aporta
-  nada. Hay que elegir otro punto.
-- Contar suspensiones por **evento**, no por lectura de 30 min, y **cada zarpe cancelado una sola
-  vez**, antes de que el modelo pase a "aprendido" (hoy una suspensión de 3,5 h suma 7 lecturas).
-- Falta **guardar la predicción emitida** en cada corrida para los 3 cruces: sin eso no se puede
-  medir "cómo nos fue" con anticipación (salvo Primera Angostura) ni publicarlo.
-- La regla base (umbral de 70 km/h) dio **muchas falsas alarmas** ese día.
-- **No ajustar umbrales a mano por un solo día.**
+  nada. Hay que elegir otro punto (pendiente, Bloque 3).
+- Un modelo que se evaluó con los mismos datos con los que aprendió pasó a "aprendido" con 2
+  temporales y mostraba "98 % de acierto" → corregido (Bloque 1).
+- **No ajustar umbrales a mano por uno o dos días.**
 
 ## Hoja de ruta
 Hecho:
@@ -124,17 +170,28 @@ Hecho:
 - [x] Web publicada en GitHub Pages (estado, gráfico, planificador, historial, mapa día/hora).
 - [x] Avisos por Telegram al cambiar el estado (verificar que estén cargados los Secrets).
 - [x] Modelo con regla base + evaluación (`corredor.evaluacion`).
-- [x] Pantalla En vivo (demo) y medición de cobertura AIS.
+- [x] Pantalla En vivo (demo) y medición de cobertura AIS (AIS apagado: sin cobertura).
+- [x] Guardar las predicciones emitidas en cada corrida (3 cruces), desde el 24/11.
+- [x] Contar suspensiones por temporal y por zarpe, no por lectura.
+- [x] Bloque 1: modelo honesto (prueba con datos nuevos y 2 temporales) y regla base por cruce.
+- [x] Bloque 2: sección "Cómo nos fue".
+- [x] Ventanas con día de fin ("hoy 18:00 → mañana 21:00").
 
 Prioridades, en orden:
-1. [x] Guardar las predicciones emitidas en cada corrida (3 cruces) — desde el 24/11/2026.
-2. Contar eventos y zarpes en lugar de lecturas.
-3. Reconstruir las suspensiones de años anteriores (prensa, redes de TABSA y de la Capitanía
+1. **Renovar el token de cron-job.org antes del 17/12/2026.**
+2. `corredor.evaluacion` con `predicciones/` para medir los 3 cruces con anticipación.
+3. Bloque 3, modelo en sombra: marea y dirección del viento respecto del eje de cada cruce
+   (se evalúa pero no se muestra) + un punto nuevo para Bahía Azul, en otra celda de
+   Open-Meteo, sin borrar el viejo. Revisar también por qué Río Verde da tantas falsas
+   alarmas.
+4. Bloque 4, salud del sistema: comando `salud`, aviso al equipo por Telegram (chat aparte)
+   si fallan TABSA o el clima o si se acerca el vencimiento del token, y cartel "Datos
+   atrasados" en la web.
+5. Bloque 5, web profesional: contraste AA, un solo número por dato (encabezado contra
+   tarjeta), % principal de Porvenir = próximo zarpe, minimapa que respete a TABSA, versión
+   0.5.0 en el pie, prueba en celular y con 3G lenta.
+6. Reconstruir las suspensiones de años anteriores (prensa, redes de TABSA y de la Capitanía
    de Puerto de Punta Delgada): es lo único que acorta la espera para entrenar.
-4. Probar la marea y la dirección del viento respecto del eje del estrecho como datos del
-   modelo, cuando haya varios temporales.
-5. Textos de la web: ventanas "16:00–16:00" sin día de fin, "ahora" contra pronóstico,
-   minimapa que respete a TABSA.
-6. Pasar a MET Norway antes de cobrar.
+7. Pasar a MET Norway antes de cobrar.
 
 Después: WhatsApp (la API de Meta es paga) y validar el Plan Flota con 5 empresas.
