@@ -2,6 +2,12 @@
 
 Una entrada por bloque de mejoras. Lo más nuevo arriba.
 
+## CLAUDE.md renovado (2026-11-27)
+- Se instala el `CLAUDE.md` nuevo del equipo (forma de trabajo de un cambio por rama, cómo funciona el
+  modelo hoy, lecciones del 24 al 26/11, hoja de ruta con el vencimiento del token de cron-job.org).
+- Únicos agregados míos, para que coincida con lo que ya está en `main`: Río Verde en **95** (no 85),
+  el comando `web --fresco`, `resultados.py` en la estructura y 153 pruebas. Sin cambios de código.
+
 ## Río Verde: regla base en 95 km/h (2026-11-27)
 - La regla base de Río Verde pasa de 85 a **95 km/h = 50 %** (amarillo desde 75), `PRIOR_BY_ROUTE`.
   Motivo: el 26/11 operó normal en horario de servicio con ráfagas de hasta 88 km/h y la regla de 85
