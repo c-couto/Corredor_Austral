@@ -155,3 +155,4 @@ ts_utc,where_,error
 2026-11-25T07:08:21Z,weather,The read operation timed out
 2026-11-26T02:37:52Z,weather,HTTP Error 429: Too Many Requests
 2026-11-26T21:07:58Z,weather,HTTP Error 503: Service Unavailable
+2026-11-27T00:08:21Z,weather,<urlopen error _ssl.c:1063: The handshake operation timed out>
