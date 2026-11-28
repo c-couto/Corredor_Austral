@@ -117,6 +117,11 @@ PLANNER_ORIGINS: tuple[tuple[str, float], ...] = (
     ("Ushuaia", 7.0),
 )
 
+# Camión desde Buenos Aires hasta Punta Delgada (~2.750 km por Ruta 3, Monte Aymond y Ruta 255). Con los
+# descansos del chofer y la frontera, ~48 h: es un SUPUESTO que la persona puede cambiar en la web.
+TRUCK_ORIGIN = "Buenos Aires"
+TRUCK_TRAVEL_H = 48
+
 # ---------------------------------------------------------------- riesgo y modelo
 
 # Probabilidad de que el cruce NO esté normal -> nivel que se muestra.
