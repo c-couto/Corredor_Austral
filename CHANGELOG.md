@@ -3,6 +3,15 @@
 Una entrada por bloque de mejoras. Lo más nuevo arriba.
 
 
+## Rampa de Bahía Azul (punto nuevo de clima, solo se recolecta)
+- Lugar nuevo `bahia_azul_rampa` (-52,4946 / -69,5200, la rampa real según OpenStreetMap): cae en otra celda de
+  Open-Meteo que `punta_delgada` y `bahia_azul` (que dan siempre lo mismo). Probado en vivo: ráfaga 51,5 contra
+  49 y dirección 259° contra 284° en el mismo momento. No se borró ningún lugar.
+- **Solo se recolecta**: aparece como filas nuevas en `weather_obs.csv` (mismo formato). Ningún cruce, predicción,
+  pantalla, pronóstico guardado ni oleaje lo usa. Una prueba verifica que un viento enorme en ese punto no
+  cambia ninguna predicción. Cuando haya datos y temporales se evalúa en la sombra si mejora el modelo.
+- Pruebas nuevas (191 en total).
+
 ## Pronóstico de 4 días (para el camión desde Buenos Aires)
 - El viento se pide a Open-Meteo (y MET Norway) a **96 h** en vez de 48. Lo usa la sección del camión: un
   camión que sale ahora de Buenos Aires (~48 h de viaje) ya recibe probabilidad. Si la llegada cae a más de
