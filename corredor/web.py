@@ -325,12 +325,15 @@ def _route_card(snap: Snapshot, st: RouteStatus) -> str:
 
 # ------------------------------------------------------------------ secciones
 
+PLANNER_HORAS = 48  # el planificador ("¿A qué hora salgo?") sigue con 48 h; el camión usa las 96
+
+
 def _planner(snap: Snapshot) -> str:
     st = snap.route(config.PLANNER_ROUTE)
     if not st or not st.hours:
         return ""
     data = {
-        "hours": [[int(h.t.timestamp() * 1000), round(h.p, 3)] for h in st.hours],
+        "hours": [[int(h.t.timestamp() * 1000), round(h.p, 3)] for h in st.hours[:PLANNER_HORAS]],
         "origins": [[name, hours] for name, hours in config.PLANNER_ORIGINS],
         "offset": config.LOCAL_UTC_OFFSET_H,
         "levels": [[lim, name] for lim, name in config.RISK_LEVELS],
@@ -356,7 +359,7 @@ if(arr<first-H/2)return{tipo:'pasada',arr:arr};
 if(arr>last+H/2)return{tipo:'fuera',arr:arr,desde:arr-(last-first),hasta:last};
 var best=hs[0];hs.forEach(function(h){if(Math.abs(h[0]-arr)<Math.abs(best[0]-arr))best=h});
 var peor=0;hs.forEach(function(h){if(Math.abs(h[0]-arr)<=2*H&&h[1]>peor)peor=h[1]});
-return{tipo:'pronostico',arr:arr,p:best[1],peor:peor}}/*FN-END*/"""
+return{tipo:'pronostico',arr:arr,p:best[1],peor:peor,lejos:(arr-first)>48*H}}/*FN-END*/"""
 
 CAMION_JS = """(function(){var el=document.getElementById('camion-data');if(!el)return;var d=JSON.parse(el.textContent);var H=3600e3;
 %(fn)s
@@ -375,8 +378,8 @@ function calcular(){var v=fi.value;if(!v){out.textContent='Elegí cuándo sale e
  var llega='Llegaría a Punta Delgada el <b>'+DIAS[aLocal(r.arr).getUTCDay()]+' '+fmt(r.arr)+'</b> (hora local).';
  if(r.tipo==='pronostico'){var pc=Math.round((1-r.p)*100);
   h=llega+'<span class="cam-n b-'+lvl(r.p)+'"><b>'+pc+' %%</b> de cruzar sin esperar</span>'+
-  '<span class="small">Probabilidad de que TABSA suspenda el cruce a esa hora: '+Math.round(r.p*100)+' %%'+(r.peor>r.p+.05?' (en la peor hora cercana, '+Math.round(r.peor*100)+' %%)':'')+'. '+demora()+'</span>'}
- else if(r.tipo==='fuera'){h=llega+'<span class="cam-n b-nd"><b>Todavía sin cálculo</b></span><span class="small">Nuestro pronóstico llega hasta el '+fmt(r.hasta)+'. Más allá de 48 h el viento no es confiable para el modelo, así que no inventamos un número. <b>Volvé a mirar desde el '+fmt(r.desde)+'</b> (o con el camión en ruta): ahí ya habrá probabilidad. '+historico(r.arr)+'</span>'}
+  '<span class="small">Probabilidad de que TABSA suspenda el cruce a esa hora: '+Math.round(r.p*100)+' %%'+(r.peor>r.p+.05?' (en la peor hora cercana, '+Math.round(r.peor*100)+' %%)':'')+'. '+(r.lejos?'Es un pronóstico a más de 2 días: menos preciso, volvé a mirarlo más cerca. ':'')+demora()+'</span>'}
+ else if(r.tipo==='fuera'){h=llega+'<span class="cam-n b-nd"><b>Todavía sin cálculo</b></span><span class="small">Nuestro pronóstico llega hasta el '+fmt(r.hasta)+'. Más allá de 4 días el viento no es confiable, así que no inventamos un número. <b>Volvé a mirar desde el '+fmt(r.desde)+'</b> (o con el camión en ruta): ahí ya habrá probabilidad. '+historico(r.arr)+'</span>'}
  else if(r.tipo==='pasada'){h=llega+'<span class="small">Esa hora ya pasó: mirá el estado actual del cruce arriba.</span>'}
  else h='Sin pronóstico por ahora.';
  out.innerHTML=h}

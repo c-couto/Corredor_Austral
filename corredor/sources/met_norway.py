@@ -16,7 +16,7 @@ from . import Places, num
 NAME = "met-norway"
 URL = "https://api.met.no/weatherapi/locationforecast/2.0/complete"
 MS_TO_KMH = 3.6
-FORECAST_HOURS = 48
+FORECAST_HOURS = 96
 
 
 def _kmh(value) -> float | None:

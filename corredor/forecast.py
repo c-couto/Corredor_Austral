@@ -1,4 +1,4 @@
-"""Pronóstico horario del momento (48 h por lugar).
+"""Pronóstico horario del momento (96 h = 4 días por lugar; en data/ se guardan 48 h).
 
 Es una "foto" que se reemplaza en cada corrida, así que NO se guarda en el repo
 (vive en .cache/). Lo usan la web y el planificador. Si falta o es viejo, se
@@ -14,6 +14,7 @@ from . import config
 from .timeutil import format_ts, parse_ts
 
 MAX_AGE = timedelta(hours=3)
+SNAPSHOT_HOURS = 48   # lo que se guarda en data/auto/pronosticos/ (el pronóstico en memoria llega a 96 h)
 CURRENT_FIELDS = ("temp_c", "wind_kmh", "gust_kmh", "wind_dir_deg", "precip_mm",
                   "weather_code", "is_day", "symbol")
 
@@ -35,6 +36,8 @@ def snapshot_rows(issued_utc: str, source: str, weather: dict[str, dict],
         wind = {h["t"]: h for h in (weather.get(place) or {}).get("hourly") or []}
         sea = {h["t"]: h for h in ((marine or {}).get(place) or {}).get("hourly") or []}
         for t in sorted(set(wind) | set(sea)):
+            if (parse_ts(t) - issued).total_seconds() > SNAPSHOT_HOURS * 3600:
+                continue  # el formato y el tamaño de lo guardado no cambian
             w, m = wind.get(t, {}), sea.get(t, {})
             rows.append({
                 "issued_utc": issued_utc, "place": place, "valid_utc": t,

@@ -114,7 +114,7 @@ CSV, uno por tabla; diccionario completo en la sección "Datos" del `README.md`.
   como **una** suspensión.
 - `data/auto/` lo escribe solo el bot; `data/manual/` solo los comandos `status`/`event`/`crossing`.
 - `data/auto/pronosticos/AAAA-MM.csv`: pronóstico de 48 h tal como estaba en cada corrida
-  (solo Punta Delgada y Bahía Azul). `data/model/modelo.json`: el modelo (se reescribe a diario).
+  (solo Punta Delgada y Bahía Azul; se guardan 48 h aunque el pronóstico en memoria llega a 96 h, que usa la sección del camión). `data/model/modelo.json`: el modelo (se reescribe a diario).
 - `data/auto/predicciones/AAAA-MM.csv`: lo que **predijimos** en cada corrida para los 3 cruces
   (ahora, +1…+36 h y cada zarpe de Porvenir), con el mismo cálculo que la web (`corredor/predicciones.py`).
 
