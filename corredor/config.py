@@ -44,6 +44,11 @@ PLACES: dict[str, tuple[float, float]] = {
     "porvenir": (-53.30, -70.37),
     "punta_arenas": (-53.16, -70.91),
     "rio_verde": (-52.65, -71.48),  # cruce del canal Fitz Roy: verificar en el mapa
+    # Rampa REAL de Bahía Azul (OpenStreetMap). "punta_delgada" y "bahia_azul" caen en la MISMA celda de
+    # Open-Meteo (dan siempre lo mismo); este punto cae en otra y da números distintos (ver
+    # scripts/comparar_puntos_open_meteo.py). SOLO SE RECOLECTA (weather_obs.csv): ninguna predicción,
+    # cruce ni pantalla lo usa todavía. Sirve para comparar y, con datos, decidir si mejora el modelo.
+    "bahia_azul_rampa": (-52.4946, -69.5200),
 }
 
 # Puntos donde también se consulta oleaje (modelo marino; puede no cubrir bien el estrecho).
@@ -62,6 +67,7 @@ PLACE_NAMES: dict[str, str] = {
     "porvenir": "Porvenir",
     "punta_arenas": "Punta Arenas",
     "rio_verde": "Río Verde",
+    "bahia_azul_rampa": "Bahía Azul (rampa)",
 }
 
 # Magallanes (Chile) y Tierra del Fuego (Argentina) usan UTC-3 todo el año.
