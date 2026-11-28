@@ -350,6 +350,71 @@ def _planner(snap: Snapshot) -> str:
 </section>"""
 
 
+CAMION_JS_FN = """/*FN*/function camionResultado(d,dep,horas){var H=3600e3,arr=dep+horas*H,hs=d.hours;if(!hs.length)return{tipo:'sin-datos',arr:arr};
+var first=hs[0][0],last=hs[hs.length-1][0];
+if(arr<first-H/2)return{tipo:'pasada',arr:arr};
+if(arr>last+H/2)return{tipo:'fuera',arr:arr,desde:arr-(last-first),hasta:last};
+var best=hs[0];hs.forEach(function(h){if(Math.abs(h[0]-arr)<Math.abs(best[0]-arr))best=h});
+var peor=0;hs.forEach(function(h){if(Math.abs(h[0]-arr)<=2*H&&h[1]>peor)peor=h[1]});
+return{tipo:'pronostico',arr:arr,p:best[1],peor:peor}}/*FN-END*/"""
+
+CAMION_JS = """(function(){var el=document.getElementById('camion-data');if(!el)return;var d=JSON.parse(el.textContent);var H=3600e3;
+%(fn)s
+var fi=document.getElementById('cam-sale'),hi=document.getElementById('cam-horas'),out=document.getElementById('cam-res');
+function p2(n){return('0'+n).slice(-2)}
+function aLocal(ms){return new Date(ms+d.offset*H)}
+function fmt(ms){var t=aLocal(ms);return p2(t.getUTCDate())+'/'+p2(t.getUTCMonth()+1)+' '+p2(t.getUTCHours())+':'+p2(t.getUTCMinutes())}
+function lvl(p){for(var i=0;i<d.levels.length;i++)if(p>=d.levels[i][0])return d.levels[i][1];return'bajo'}
+var DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+function historico(ms){var t=aLocal(ms),c=d.heat[((t.getUTCDay()+6)%%7)+'-'+t.getUTCHours()];
+ return c&&c[0]>=20?'Históricamente, los '+DIAS[t.getUTCDay()]+' a esa hora hubo '+c[1]+' lecturas suspendidas de '+c[0]+' (es un conteo, no una probabilidad).':''}
+function demora(){if(!d.dur.length)return'';var s=d.dur.slice().sort(function(a,b){return a-b}),m=s[Math.floor(s.length/2)];
+ return'Si se suspende, las suspensiones registradas duraron '+(m<1?Math.round(m*60)+' min':m.toFixed(1)+' h')+' (mediana de '+s.length+').'}
+function calcular(){var v=fi.value;if(!v){out.textContent='Elegí cuándo sale el camión.';return}
+ var dep=Date.parse(v+':00Z')-d.offset*H,horas=Math.max(1,Math.min(200,+hi.value||d.horas)),r=camionResultado(d,dep,horas),h='';
+ var llega='Llegaría a Punta Delgada el <b>'+DIAS[aLocal(r.arr).getUTCDay()]+' '+fmt(r.arr)+'</b> (hora local).';
+ if(r.tipo==='pronostico'){var pc=Math.round((1-r.p)*100);
+  h=llega+'<span class="cam-n b-'+lvl(r.p)+'"><b>'+pc+' %%</b> de cruzar sin esperar</span>'+
+  '<span class="small">Probabilidad de que TABSA suspenda el cruce a esa hora: '+Math.round(r.p*100)+' %%'+(r.peor>r.p+.05?' (en la peor hora cercana, '+Math.round(r.peor*100)+' %%)':'')+'. '+demora()+'</span>'}
+ else if(r.tipo==='fuera'){h=llega+'<span class="cam-n b-nd"><b>Todavía sin cálculo</b></span><span class="small">Nuestro pronóstico llega hasta el '+fmt(r.hasta)+'. Más allá de 48 h el viento no es confiable para el modelo, así que no inventamos un número. <b>Volvé a mirar desde el '+fmt(r.desde)+'</b> (o con el camión en ruta): ahí ya habrá probabilidad. '+historico(r.arr)+'</span>'}
+ else if(r.tipo==='pasada'){h=llega+'<span class="small">Esa hora ya pasó: mirá el estado actual del cruce arriba.</span>'}
+ else h='Sin pronóstico por ahora.';
+ out.innerHTML=h}
+var ahora=aLocal(Date.now());fi.value=ahora.getUTCFullYear()+'-'+p2(ahora.getUTCMonth()+1)+'-'+p2(ahora.getUTCDate())+'T'+p2(ahora.getUTCHours())+':00';
+hi.value=d.horas;fi.addEventListener('input',calcular);hi.addEventListener('input',calcular);calcular()})();
+"""
+
+
+def _camion(snap: Snapshot) -> str:
+    st = snap.route(config.PLANNER_ROUTE)
+    if not st or not st.hours:
+        return ""
+    done = [e for e in snap.episodes if e.subject == config.ROUTES[config.PLANNER_ROUTE].get("tabsa") and e.end]
+    data = {
+        "hours": [[int(h.t.timestamp() * 1000), round(h.p, 3)] for h in st.hours],
+        "offset": config.LOCAL_UTC_OFFSET_H,
+        "levels": [[lim, name] for lim, name in config.RISK_LEVELS],
+        "heat": {f"{wd}-{hr}": cell for (wd, hr), cell in snap.heat.items()},
+        "dur": [round(e.duration(snap.now).total_seconds() / 3600, 2) for e in done],
+        "horas": config.TRUCK_TRAVEL_H,
+    }
+    return f"""
+<section class="card" id="camion">
+  <h2>Camión desde {escape(config.TRUCK_ORIGIN)} <span class="beta">BETA</span></h2>
+  <p class="muted small">Si un camión sale de {escape(config.TRUCK_ORIGIN)}, ¿llega a tiempo para cruzar {escape(st.name)}?
+  Te decimos la probabilidad de que el cruce esté funcionando cuando llegue a Punta Delgada.</p>
+  <div class="cam-form">
+    <label>Sale (hora local)<input type="datetime-local" id="cam-sale"></label>
+    <label>Viaje hasta Punta Delgada (horas)<input type="number" id="cam-horas" min="1" max="200" step="1"></label>
+  </div>
+  <p class="muted small">Las {config.TRUCK_TRAVEL_H} h son un supuesto (~2.750 km, descansos del chofer y frontera): cambialas
+  según tu viaje. Si ya salió, poné la hora en que salió.</p>
+  <div id="cam-res" class="best" role="status"></div>
+  <script type="application/json" id="camion-data">{json.dumps(data)}</script>
+  <script>{CAMION_JS % {"fn": CAMION_JS_FN}}</script>
+</section>"""
+
+
 def _sailings(snap: Snapshot) -> str:
     if not snap.sailings:
         return ""
@@ -682,6 +747,11 @@ details summary{cursor:pointer;margin:8px 0;font-weight:600;font-size:.88rem}
 .seg button{font:inherit;font-size:.85rem;font-weight:600;padding:8px 12px;border-radius:99px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
 .seg button[aria-pressed=true]{background:var(--brand);border-color:var(--brand);color:#04202e}
 .best{font-weight:600;margin:6px 0 10px}
+.cam-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:10px 0}
+.cam-form label{display:grid;gap:4px;font-size:.8rem;color:var(--muted)}
+.cam-form input{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;color-scheme:dark}
+.cam-n{display:block;margin:8px 0;padding:10px 12px;border-radius:12px;font-weight:600}.cam-n b{font-size:1.5rem;margin-right:6px}
+#cam-res .small{display:block;font-weight:400;color:var(--muted)}
 .plan{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px}
 .plan li{border-radius:10px;padding:6px 4px;text-align:center;font-size:.78rem;line-height:1.2;font-variant-numeric:tabular-nums}
 .plan li b{display:block;font-size:.95rem}.plan li.top{outline:2px solid var(--brand);outline-offset:1px}
@@ -839,6 +909,7 @@ def render(snap: Snapshot, now: datetime | None = None) -> str:
   <p class="muted small">El estado oficial lo publica <a href="{config.OFFICIAL_URL}" rel="noopener">TABSA</a>; la
   probabilidad es nuestra estimación. Ante la duda, confirmá con TABSA.</p>
   {_planner(snap)}
+  {_camion(snap)}
   {_sailings(snap)}
   {_history(snap)}
   {_como_nos_fue(resultados.calcular(now), now)}

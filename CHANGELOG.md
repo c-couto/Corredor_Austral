@@ -3,6 +3,15 @@
 Una entrada por bloque de mejoras. Lo más nuevo arriba.
 
 
+## Camión desde Buenos Aires (BETA)
+- Sección nueva en la web: se elige cuándo sale (o salió) el camión y cuántas horas tarda hasta Punta Delgada
+  (supuesto de 48 h, editable: ~2.750 km con descansos y frontera) y dice la probabilidad de que el cruce
+  de Primera Angostura esté funcionando a la hora de llegada ("cruzar sin esperar"), con la peor hora cercana y
+  la duración típica de las suspensiones registradas.
+- **Honesto con el horizonte**: el pronóstico llega a 48 h. Si el camión llegaría después, NO inventa un número:
+  dice desde cuándo se podrá calcular ("volvé a mirar desde...") y muestra el conteo histórico solo si hay 20
+  lecturas o más en ese día y hora. No cambia datos ni la recolección. Pruebas nuevas (`tests/test_camion.py`).
+
 ## Bloque 5 · Web más firme (contraste y un solo número por dato)
 - **Arreglo urgente de un error del Bloque 4**: el cartel "Datos atrasados" usaba una variable con el mismo
   nombre que una función del planificador y lo rompía ("¿A qué hora salgo?" no respondía). Corregido.
