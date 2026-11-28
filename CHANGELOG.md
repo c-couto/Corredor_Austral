@@ -3,6 +3,15 @@
 Una entrada por bloque de mejoras. Lo más nuevo arriba.
 
 
+## Pronóstico de 4 días (para el camión desde Buenos Aires)
+- El viento se pide a Open-Meteo (y MET Norway) a **96 h** en vez de 48. Lo usa la sección del camión: un
+  camión que sale ahora de Buenos Aires (~48 h de viaje) ya recibe probabilidad. Si la llegada cae a más de
+  2 días, el resultado avisa que es un pronóstico menos preciso; más allá de 4 días sigue sin dar número.
+- **Los datos guardados NO cambian**: `pronosticos/` sigue guardando 48 h (mismo formato y tamaño), oleaje y
+  marea siguen en 48 h, y `predicciones/`, el modelo y "Cómo nos fue" no se tocan. El pronóstico largo vive
+  solo en memoria/caché. El planificador "¿A qué hora salgo?" y el gráfico siguen con 48 h.
+- Probado contra Open-Meteo real (96 horas, sin guardar nada). Pruebas nuevas (188 en total).
+
 ## Camión desde Buenos Aires (BETA)
 - Sección nueva en la web: se elige cuándo sale (o salió) el camión y cuántas horas tarda hasta Punta Delgada
   (supuesto de 48 h, editable: ~2.750 km con descansos y frontera) y dice la probabilidad de que el cruce

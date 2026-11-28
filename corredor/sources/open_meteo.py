@@ -14,7 +14,8 @@ from . import Places, num
 NAME = "open-meteo"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 MARINE_URL = "https://marine-api.open-meteo.com/v1/marine"
-FORECAST_HOURS = 48
+FORECAST_HOURS = 96          # viento: 4 días (la web y el camión de Buenos Aires usan hasta 96 h)
+MARINE_HOURS = 48            # oleaje y marea: 48 h (lo que se guarda en data/)
 
 
 def fetch_many(url: str, places: Places, params: Mapping[str, Any],
@@ -38,7 +39,7 @@ def fetch_many(url: str, places: Places, params: Mapping[str, Any],
 
 
 def fetch_weather(places: Places) -> dict[str, dict]:
-    """Clima actual + pronóstico horario de 48 h, por lugar."""
+    """Clima actual + pronóstico horario de 96 h (4 días), por lugar."""
     raw = fetch_many(FORECAST_URL, places, {
         "current": "temperature_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m,precipitation,weather_code,is_day",
         "hourly": "wind_speed_10m,wind_gusts_10m,wind_direction_10m",
@@ -89,7 +90,7 @@ def fetch_marine(places: Places) -> dict[str, dict]:
     raw = fetch_many(MARINE_URL, places, {
         "current": "wave_height,wave_period,wave_direction",
         "hourly": "wave_height,wave_period,wave_direction,sea_level_height_msl",
-        "forecast_hours": FORECAST_HOURS,
+        "forecast_hours": MARINE_HOURS,
         "timezone": "UTC",
     })
     out = {}

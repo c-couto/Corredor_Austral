@@ -71,7 +71,7 @@ class RouteStatus:
     forecast_gust_kmh: float | None = None  # ráfaga máxima pronosticada, próximas 24 h
     wave_m: float | None = None
     p_now: float | None = None
-    hours: list[HourRisk] = field(default_factory=list)                 # próximas 48 h
+    hours: list[HourRisk] = field(default_factory=list)                 # próximas 96 h (4 días)
     history: list[tuple[datetime, float]] = field(default_factory=list)  # (hora, ráfaga) 24 h
     official: str | None = None
     official_ts: datetime | None = None
@@ -171,7 +171,7 @@ def _hourly(key: str, fc: dict | None, route_model: model.RouteModel, now: datet
             continue
         p = route_model.predict(gust, _max(num(h.get("wind")) for h in hs), num(hs[0].get("dir")))
         out.append(HourRisk(t, p, gust))
-    return out[:48]
+    return out[:96]
 
 
 def _episodes(state_rows: list[dict], names: dict[str, str]) -> list[Episode]:
