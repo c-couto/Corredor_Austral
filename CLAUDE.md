@@ -75,9 +75,7 @@ Sabemos algo de programación: entendemos el código si lo vemos, pero no escrib
   - Al 27/11 los 3 cruces usan la regla base (temporales/zarpes: PA 2, Porvenir 6, Río Verde 1).
   - Se reentrena todos los días a las 00:01 UTC (21:01 hora local).
 - **Evaluación** (`python -m corredor.evaluacion`): compara lo que predijimos con lo que hizo
-  TABSA, en el momento y con 3/12/24 h de anticipación. Solo lee datos. **Pendiente**: hoy
-  reconstruye la anticipación desde `pronosticos/`, así que solo la mide en Primera Angostura;
-  tiene que usar `predicciones/`, que guarda los 3 cruces desde el 24/11.
+  TABSA, en el momento y con 3/12/24 h de anticipación. Solo lee datos. Con anticipación usa `predicciones/` (lo que se predijo de verdad, los 3 cruces, desde el 24/11); `--desde AAAA-MM-DD` mide solo con la regla vigente.
 - **Web — "Cómo nos fue"** (Bloque 2): predicciones con 3/12/24 h contra lo que hizo TABSA, por
   cruce y por día, con errores incluidos.
 - **Web** publicada en **GitHub Pages**: https://c-couto.github.io/Corredor_Austral/
@@ -179,7 +177,7 @@ Hecho:
 
 Prioridades, en orden:
 1. **Renovar el token de cron-job.org antes del 17/12/2026.**
-2. `corredor.evaluacion` con `predicciones/` para medir los 3 cruces con anticipación.
+2. ~~`corredor.evaluacion` con `predicciones/`~~ (hecho).
 3. Bloque 3, modelo en sombra: marea y dirección del viento respecto del eje de cada cruce
    (se evalúa pero no se muestra) + un punto nuevo para Bahía Azul, en otra celda de
    Open-Meteo, sin borrar el viejo. Revisar también por qué Río Verde da tantas falsas

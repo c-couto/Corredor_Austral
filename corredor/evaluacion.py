@@ -3,6 +3,7 @@
 Uso (desde la raíz del repo):
     python -m corredor.evaluacion              # todo el historial
     python -m corredor.evaluacion --dias 7     # últimos 7 días
+    python -m corredor.evaluacion --desde 2026-11-27   # desde una fecha (p. ej. desde que rige la regla actual)
     python -m corredor.evaluacion --csv .cache/evaluacion.csv   # detalle fila por fila
 
 Solo LEE datos: no escribe en data/ ni toca el modelo.
@@ -10,8 +11,9 @@ Solo LEE datos: no escribe en data/ ni toca el modelo.
 Para que la medición sea honesta:
   - Se usa el modelo que estaba vigente EN ESE MOMENTO (versiones de data/model/modelo.json
     en el historial de git), no el de hoy.
-  - "Con anticipación" usa el pronóstico TAL COMO ESTABA entonces (data/auto/pronosticos/),
-    nunca datos del futuro.
+  - "Con anticipación" usa lo que PREDIJIMOS entonces (data/auto/predicciones/, los 3 cruces, desde
+    el 24/11); antes de esa fecha reconstruye Primera Angostura con el pronóstico tal como estaba
+    (data/auto/pronosticos/). Nunca usa datos del futuro.
   - "En el momento" (0 h) usa el viento medido en esa misma corrida.
 
 Métricas (para cada anticipación):
@@ -180,11 +182,52 @@ class Pronosticos:
         return (emision, x) if x else None
 
 
+class Predicciones:
+    """Lo que PREDIJIMOS de verdad, guardado en cada corrida (data/auto/predicciones/, desde el 24/11).
+
+    Es la fuente más honesta para medir con anticipación: no se vuelve a calcular nada, es el número que
+    mostraba la web entonces. Cubre los 3 cruces (los zarpes de Porvenir por separado)."""
+
+    TOL_ZARPE_H = 0.75   # un zarpe usa la predicción emitida a esta cercanía de la anticipación pedida
+
+    def __init__(self):
+        self.horas: dict[tuple[str, int], dict[datetime, tuple[float, float, float | None]]] = {}
+        self.zarpes: dict[tuple[str, int], dict[datetime, tuple[float, float]]] = {}
+        for r in storage.read_rows(storage.PREDICTIONS):
+            if not r.get("prob"):
+                continue
+            emitido, valido, prob = parse_ts(r["emitido_utc"]), parse_ts(r["valido_utc"]), float(r["prob"])
+            lead = (valido - emitido).total_seconds() / 3600
+            for a in ANTICIPACIONES_H[1:]:
+                if r["tipo"] == "hora":
+                    if r["anticipacion_h"] != str(a):
+                        continue
+                    dist = abs(lead - a)
+                    rafaga = float(r["rafaga_kmh"]) if r.get("rafaga_kmh") else None
+                    d = self.horas.setdefault((r["ruta"], a), {})
+                    if valido not in d or dist < d[valido][0]:
+                        d[valido] = (dist, prob, rafaga)
+                elif r["tipo"] == "zarpe" and abs(lead - a) <= self.TOL_ZARPE_H:
+                    dist = abs(lead - a)
+                    d = self.zarpes.setdefault((r["ruta"], a), {})
+                    if valido not in d or dist < d[valido][0]:
+                        d[valido] = (dist, prob)
+
+    def para(self, ruta: str, t: datetime, a: int, zarpe: bool):
+        """(probabilidad, ráfaga o None) que se había predicho `a` horas antes para `t`, o None."""
+        if zarpe:
+            hit = self.zarpes.get((ruta, a), {}).get(t)
+            return (hit[1], None) if hit else None
+        hora = t.replace(minute=0, second=0, microsecond=0) + (timedelta(hours=1) if t.minute >= 30 else timedelta(0))
+        hit = self.horas.get((ruta, a), {}).get(hora)
+        return (hit[1], hit[2]) if hit else None
+
+
 # ------------------------------------------------------------------ evaluación
 
 def evaluar(desde: datetime | None = None, historial=None) -> dict:
     historial = historial_modelos() if historial is None else historial
-    clima, pron = Clima(), Pronosticos()
+    clima, pron, guardadas = Clima(), Pronosticos(), Predicciones()
     resultado = {}
     for ruta in config.ROUTES:
         lugares = config.ROUTES[ruta]["places"]
@@ -197,7 +240,13 @@ def evaluar(desde: datetime | None = None, historial=None) -> dict:
                 fila["p0"] = modelo_vigente(ruta, o.t, historial).predict_vector(x)
                 fila["rafaga0"] = x[0]
             for a in ANTICIPACIONES_H[1:]:
-                r = pron.para(o.t, a, lugares)
+                g = guardadas.para(ruta, o.t, a, bool(config.ROUTES[ruta].get("scheduled")))
+                if g:   # lo que predijimos de verdad (predicciones/): vale para los 3 cruces
+                    fila[f"p{a}"], rafaga = g
+                    if rafaga is not None:
+                        fila[f"rafaga{a}"] = rafaga
+                    continue
+                r = pron.para(o.t, a, lugares)   # antes del 24/11: se reconstruye (solo Primera Angostura)
                 if r:
                     emision, xa = r
                     fila[f"p{a}"] = modelo_vigente(ruta, emision, historial).predict_vector(xa)
@@ -289,16 +338,22 @@ def texto(res: dict) -> str:
         L.append("")
     L.append("Brier: 0 es perfecto; tiene que ser MENOR que la referencia (decir siempre el promedio).")
     L.append("Sin suspensiones la referencia no aplica (decir siempre 0 % sería 'perfecto').")
-    L.append("Con anticipación solo se puede medir Primera Angostura (es el único cruce con pronóstico guardado).")
+    L.append("Con anticipación se usan las predicciones que guardamos en cada corrida (predicciones/, desde el 24/11, los 3 cruces).")
+    L.append("Antes de esa fecha solo se reconstruye Primera Angostura desde los pronósticos guardados.")
+    L.append("Ojo: las predicciones viejas se hicieron con la regla de ese momento (p. ej. Río Verde en 85 km/h hasta el 27/11).")
     return "\n".join(L)
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="python -m corredor.evaluacion", description=__doc__.splitlines()[0])
     p.add_argument("--dias", type=float, help="solo los últimos N días")
+    p.add_argument("--desde", help="solo desde esta fecha (AAAA-MM-DD, hora UTC): sirve para medir solo con la regla "
+                                   "actual (Primera Angostura 94/79 desde el 25/11, Río Verde 95 desde el 27/11)")
     p.add_argument("--csv", help="guardar el detalle fila por fila en este archivo (p. ej. .cache/evaluacion.csv)")
     args = p.parse_args(argv)
     desde = datetime.now(timezone.utc) - timedelta(days=args.dias) if args.dias else None
+    if args.desde:
+        desde = datetime.fromisoformat(args.desde).replace(tzinfo=timezone.utc)
     res = evaluar(desde)
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(errors="replace")
