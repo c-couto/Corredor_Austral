@@ -3,6 +3,15 @@
 Una entrada por bloque de mejoras. Lo más nuevo arriba.
 
 
+## Evaluación con anticipación en los 3 cruces (`predicciones/`)
+- `python -m corredor.evaluacion` ahora mide con 3, 12 y 24 h de anticipación usando **lo que de verdad
+  predijimos** (`data/auto/predicciones/`, desde el 24/11), para Primera Angostura, Punta Arenas–Porvenir
+  (zarpes) y Río Verde. Antes solo medía Primera Angostura y reconstruyéndolo. Si una hora no tiene predicción
+  guardada (antes del 24/11), Primera Angostura sigue reconstruyéndose como antes.
+- Nuevo `--desde AAAA-MM-DD` para medir solo con la regla actual (las predicciones viejas se hicieron con
+  reglas anteriores: PA en 70 hasta el 24/11, Río Verde en 85 hasta el 27/11, y eso infla las falsas alarmas).
+- Solo lee datos. Pruebas nuevas (197 en total).
+
 ## Rampa de Bahía Azul (punto nuevo de clima, solo se recolecta)
 - Lugar nuevo `bahia_azul_rampa` (-52,4946 / -69,5200, la rampa real según OpenStreetMap): cae en otra celda de
   Open-Meteo que `punta_delgada` y `bahia_azul` (que dan siempre lo mismo). Probado en vivo: ráfaga 51,5 contra
